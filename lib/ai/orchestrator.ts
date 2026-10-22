@@ -157,19 +157,6 @@ export class ModelOrchestrator {
               : ModelOrchestrator.anthropicAdapter;
 
           try {
-            // If we had to failover to a different provider, emit a subtle notice
-            if (i > 0 && lastErrorMessage) {
-              const providerName =
-                routeToTry.externalModel.providerKey === "gemini"
-                  ? "Google Gemini"
-                  : routeToTry.externalModel.providerKey;
-              yield {
-                id: `notice_${Date.now()}`,
-                textDelta: `*(Notice: Switched to ${providerName} fallback because ${candidateRoutes[0].externalModel.providerKey} reported: ${lastErrorMessage})*\n\n`,
-                isComplete: false,
-              };
-            }
-
             const stream = adapter.streamCompletion(
               routeToTry.externalModel.providerModelId,
               request.messages,
