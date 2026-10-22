@@ -1,18 +1,48 @@
 import OpenAI from "openai";
 import { AIProviderAdapter, ChatChunk, ChatCompletionResponse } from "../types";
 
+function getOpenAIKey(): string {
+  const envVal = process.env.OPENAI_API_KEY;
+  if (envVal && !envVal.includes("...your-openai-key") && !envVal.startsWith("sk-placeholder")) {
+    return envVal;
+  }
+  try {
+    const fs = require("fs");
+    const path = require("path");
+    const envPath = path.join(process.cwd(), ".env.local");
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, "utf8");
+      const m = content.match(/^OPENAI_API_KEY=(.*)$/m);
+      if (m && m[1]) {
+        const val = m[1].trim().replace(/^["']|["']$/g, "");
+        if (val && !val.includes("...your-openai-key") && !val.startsWith("sk-placeholder")) {
+          return val;
+        }
+      }
+    }
+  } catch {}
+  return "";
+}
+
 export class OpenAIAdapter implements AIProviderAdapter {
   providerKey = "openai" as const;
   private client: OpenAI | null = null;
 
   constructor() {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (apiKey && apiKey !== "sk-...your-openai-key" && !apiKey.startsWith("sk-placeholder")) {
+    const apiKey = getOpenAIKey();
+    if (apiKey) {
       this.client = new OpenAI({ apiKey });
     }
   }
 
   private getClient(): OpenAI {
+    if (!this.client) {
+      const apiKey = getOpenAIKey();
+      if (apiKey) {
+        this.client = new OpenAI({ apiKey });
+      }
+    }
+
     if (!this.client) {
       throw new Error(
         "OpenAI API key is not configured. Set OPENAI_API_KEY in your environment to use OpenAI foundation models."

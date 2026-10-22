@@ -32,8 +32,9 @@ export class TelemetryLogger {
   /**
    * Computes a privacy-safe one-way anonymized hash for an actor reference.
    */
-  static hashActor(identifier: string): string {
-    return `usr_${crypto.createHash("sha256").update(identifier).digest("hex").slice(0, 10)}`;
+  static hashActor(identifier?: string): string {
+    const raw = identifier || "anonymous";
+    return `usr_${crypto.createHash("sha256").update(raw).digest("hex").slice(0, 10)}`;
   }
 
   /**
