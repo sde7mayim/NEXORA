@@ -1,5 +1,6 @@
 import { OpenAIAdapter } from "./providers/openai-adapter";
 import { AnthropicAdapter } from "./providers/anthropic-adapter";
+import { GeminiAdapter } from "./providers/gemini-adapter";
 import { ModelRegistry } from "./model-registry";
 import { WorkspaceService } from "../workspaces/workspace-service";
 import {
@@ -19,6 +20,7 @@ export interface ResolvedRouteTarget {
 export class ModelRouter {
   private static openaiAdapter = new OpenAIAdapter();
   private static anthropicAdapter = new AnthropicAdapter();
+  private static geminiAdapter = new GeminiAdapter();
 
   /**
    * Resolves a client-supplied model ID (branded or direct external) into prioritized route targets.
@@ -174,6 +176,8 @@ export class ModelRouter {
         const adapter =
           target.externalModel.providerKey === "openai"
             ? this.openaiAdapter
+            : target.externalModel.providerKey === "gemini"
+            ? this.geminiAdapter
             : this.anthropicAdapter;
 
         const stream = adapter.streamCompletion(
@@ -223,6 +227,8 @@ export class ModelRouter {
         const adapter =
           target.externalModel.providerKey === "openai"
             ? this.openaiAdapter
+            : target.externalModel.providerKey === "gemini"
+            ? this.geminiAdapter
             : this.anthropicAdapter;
 
         const response = await adapter.generateCompletion(

@@ -1,4 +1,4 @@
-export type ProviderKey = "openai" | "anthropic";
+export type ProviderKey = "openai" | "anthropic" | "gemini";
 
 export type Modality = "text" | "image" | "document" | "audio";
 
