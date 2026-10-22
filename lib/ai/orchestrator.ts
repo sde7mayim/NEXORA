@@ -1,5 +1,6 @@
 import { CircuitBreaker } from "./circuit-breaker";
 import { ModelRouter, ResolvedRouteTarget } from "./router";
+import { ModelRegistry } from "./model-registry";
 import { EntitlementEngine } from "../entitlements/engine";
 import { TelemetryLogger, TelemetryEvent } from "../telemetry/logger";
 import { ChatChunk, ChatCompletionRequest } from "./types";
@@ -117,65 +118,113 @@ export class ModelOrchestrator {
     const targetRoute = selectedRoute;
     const actorHash = TelemetryLogger.hashActor(request.userId);
 
-    // 4. Create generator stream that records telemetry and updates circuit breaker
-    async function* monitoredStream(): AsyncIterable<ChatChunk> {
-      const adapter =
-        targetRoute.externalModel.providerKey === "openai"
-          ? ModelOrchestrator.openaiAdapter
-          : targetRoute.externalModel.providerKey === "gemini"
-          ? ModelOrchestrator.geminiAdapter
-          : ModelOrchestrator.anthropicAdapter;
+    // 4. Build candidate route sequence for transparent failover
+    const candidateRoutes: ResolvedRouteTarget[] = [
+      targetRoute,
+      ...routes.filter((r) => r.externalModel.providerKey !== targetRoute.externalModel.providerKey),
+    ];
 
+    // Ensure Gemini is available as a fallback candidate if key is available
+    if (!candidateRoutes.some((r) => r.externalModel.providerKey === "gemini")) {
+      const geminiModel = ModelRegistry.getExternalModel("gemini:gemini-1.5-flash");
+      if (geminiModel) {
+        candidateRoutes.push({
+          externalModel: geminiModel,
+          routeRole: "fallback",
+        });
+      }
+    }
+
+    // 5. Create generator stream that executes failover, records telemetry and updates circuit breaker
+    async function* monitoredStream(): AsyncIterable<ChatChunk> {
       let promptTokens = 0;
       let completionTokens = 0;
       let hasError = false;
       let errorCategory: string | undefined;
+      let activeRoute = targetRoute;
+      let lastErrorMessage = "";
 
       try {
-        const stream = adapter.streamCompletion(
-          targetRoute.externalModel.providerModelId,
-          request.messages,
-          {
-            temperature: request.temperature,
-            maxTokens: request.maxTokens,
-          }
-        );
+        for (let i = 0; i < candidateRoutes.length; i++) {
+          const routeToTry = candidateRoutes[i];
+          activeRoute = routeToTry;
 
-        for await (const chunk of stream) {
-          if (!ttftRecorded && chunk.textDelta) {
-            ttftRecorded = true;
-            timeToFirstTokenMs = Date.now() - startTime;
-          }
+          const adapter =
+            routeToTry.externalModel.providerKey === "openai"
+              ? ModelOrchestrator.openaiAdapter
+              : routeToTry.externalModel.providerKey === "gemini"
+              ? ModelOrchestrator.geminiAdapter
+              : ModelOrchestrator.anthropicAdapter;
 
-          if (chunk.usage) {
-            promptTokens = chunk.usage.promptTokens;
-            completionTokens = chunk.usage.completionTokens;
-          }
+          try {
+            // If we had to failover to a different provider, emit a subtle notice
+            if (i > 0 && lastErrorMessage) {
+              const providerName =
+                routeToTry.externalModel.providerKey === "gemini"
+                  ? "Google Gemini"
+                  : routeToTry.externalModel.providerKey;
+              yield {
+                id: `notice_${Date.now()}`,
+                textDelta: `*(Notice: Switched to ${providerName} fallback because ${candidateRoutes[0].externalModel.providerKey} reported: ${lastErrorMessage})*\n\n`,
+                isComplete: false,
+              };
+            }
 
-          yield chunk;
+            const stream = adapter.streamCompletion(
+              routeToTry.externalModel.providerModelId,
+              request.messages,
+              {
+                temperature: request.temperature,
+                maxTokens: request.maxTokens,
+              }
+            );
+
+            let streamedTokens = false;
+            for await (const chunk of stream) {
+              streamedTokens = true;
+              if (!ttftRecorded && chunk.textDelta) {
+                ttftRecorded = true;
+                timeToFirstTokenMs = Date.now() - startTime;
+              }
+
+              if (chunk.usage) {
+                promptTokens = chunk.usage.promptTokens;
+                completionTokens = chunk.usage.completionTokens;
+              }
+
+              yield chunk;
+            }
+
+            if (streamedTokens) {
+              CircuitBreaker.recordSuccess(routeToTry.externalModel.providerKey);
+              hasError = false;
+              return;
+            }
+          } catch (err) {
+            hasError = true;
+            const rawErr = (err as Error).message || String(err);
+            lastErrorMessage = rawErr.includes("429")
+              ? "API quota or credits exhausted (429)"
+              : rawErr.includes("503")
+              ? "Service high demand (503)"
+              : rawErr.slice(0, 100);
+            errorCategory = (err as Error).name || "ProviderError";
+            CircuitBreaker.recordFailure(routeToTry.externalModel.providerKey, err as Error);
+            // Loop continues to attempt next route candidate
+          }
         }
 
-        // Record provider success to circuit breaker
-        CircuitBreaker.recordSuccess(targetRoute.externalModel.providerKey);
-      } catch (err) {
-        hasError = true;
-        errorCategory = (err as Error).name || "ProviderError";
-        CircuitBreaker.recordFailure(targetRoute.externalModel.providerKey, err as Error);
-
-        const lastUserPrompt =
-          request.messages.filter((m: any) => m.role === "user").pop()?.content || "";
-        const responseText = generateConceptualParagraph(lastUserPrompt);
-
+        // If all providers failed, emit diagnostic message
         yield {
-          id: `fallback_${Date.now()}`,
-          textDelta: responseText,
+          id: `err_${Date.now()}`,
+          textDelta: `[AI Provider Notice: All configured AI model providers encountered an error.\nLast error: ${lastErrorMessage}\n\nTroubleshooting:\n- If using OpenAI, check billing credits at https://platform.openai.com/settings/organization/billing/.\n- Or switch model selection to Gemini in the top-right model selector.]`,
           isComplete: true,
           finishReason: "stop",
         };
       } finally {
         const latencyMs = Date.now() - startTime;
-        const inputPrice = targetRoute.externalModel.inputPricePerMillionUSD || 0.15;
-        const outputPrice = targetRoute.externalModel.outputPricePerMillionUSD || 0.6;
+        const inputPrice = activeRoute.externalModel.inputPricePerMillionUSD || 0.15;
+        const outputPrice = activeRoute.externalModel.outputPricePerMillionUSD || 0.6;
         const estimatedCostUSD =
           (promptTokens * inputPrice + completionTokens * outputPrice) / 1000000;
 
@@ -184,15 +233,15 @@ export class ModelOrchestrator {
           correlationId,
           actorHash,
           modelSelected: request.modelSelectionId,
-          providerKey: targetRoute.externalModel.providerKey,
-          actualModelId: targetRoute.externalModel.id,
+          providerKey: activeRoute.externalModel.providerKey,
+          actualModelId: activeRoute.externalModel.id,
           latencyMs,
           timeToFirstTokenMs,
           tokensIn: promptTokens,
           tokensOut: completionTokens,
           estimatedCostUSD: parseFloat(estimatedCostUSD.toFixed(6)),
-          fallbackTriggered,
-          circuitBreakerState: CircuitBreaker.isAvailable(targetRoute.externalModel.providerKey) ? "CLOSED" : "OPEN",
+          fallbackTriggered: activeRoute.externalModel.id !== targetRoute.externalModel.id,
+          circuitBreakerState: CircuitBreaker.isAvailable(activeRoute.externalModel.providerKey) ? "CLOSED" : "OPEN",
           status: hasError ? "error" : "success",
           errorCategory,
           timestamp: new Date().toISOString(),

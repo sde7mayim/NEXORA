@@ -63,14 +63,15 @@ export class GeminiAdapter implements AIProviderAdapter {
         parts: [{ text: m.content }],
       }));
 
-    let cleanModel = modelId.replace(/^(google:|gemini:)/, "") || "gemini-flash-latest";
-    if (cleanModel.includes("1.5-flash") || cleanModel === "flash") {
-      cleanModel = "gemini-flash-latest";
-    } else if (cleanModel.includes("1.5-pro") || cleanModel === "pro") {
-      cleanModel = "gemini-pro-latest";
+    let candidateModels = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-2.5-flash-lite"];
+    const rawId = modelId.replace(/^(google:|gemini:)/, "").toLowerCase();
+    if (rawId.includes("pro")) {
+      candidateModels = ["gemini-3.8-flash", "gemini-3.1-pro-preview", "gemini-3.5-flash"];
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${apiKey}`;
+    let lastError: Error | null = null;
+    let data: any = null;
+    let usedModel = candidateModels[0];
 
     const body: Record<string, any> = {
       contents,
@@ -86,27 +87,47 @@ export class GeminiAdapter implements AIProviderAdapter {
       };
     }
 
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    for (const m of candidateModels) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Gemini API error (${res.status}): ${errText}`);
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`Gemini API error (${res.status}): ${errText}`);
+        }
+
+        const resData = await res.json();
+        if (resData.candidates && resData.candidates.length > 0) {
+          data = resData;
+          usedModel = m;
+          break;
+        } else {
+          throw new Error(`Gemini returned empty candidates: ${JSON.stringify(resData)}`);
+        }
+      } catch (err) {
+        lastError = err as Error;
+        // Continue to next candidate model
+      }
     }
 
-    const data = await res.json();
+    if (!data) {
+      throw lastError || new Error("Gemini failed to generate response across candidate models.");
+    }
+
     const candidate = data.candidates?.[0];
-    const text = candidate?.content?.parts?.map((p: any) => p.text).join("") || "";
+    const text = candidate?.content?.parts?.map((p: any) => p.text).filter(Boolean).join("") || "";
     const promptTokens = data.usageMetadata?.promptTokenCount || 0;
     const completionTokens = data.usageMetadata?.candidatesTokenCount || 0;
 
     return {
       id: `gemini_${Date.now()}`,
       content: text,
-      modelUsed: cleanModel,
+      modelUsed: usedModel,
       providerKey: "gemini",
       promptTokens,
       completionTokens,
