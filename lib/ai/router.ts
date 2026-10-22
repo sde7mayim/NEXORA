@@ -113,6 +113,37 @@ export class ModelRouter {
       throw new Error(`No available provider models configured for '${brandedVersion.id}'.`);
     }
 
+    const hasOpenAI = Boolean(
+      process.env.OPENAI_API_KEY &&
+      !process.env.OPENAI_API_KEY.includes("...your-openai-key") &&
+      !process.env.OPENAI_API_KEY.startsWith("sk-placeholder")
+    );
+    const hasAnthropic = Boolean(
+      process.env.ANTHROPIC_API_KEY &&
+      !process.env.ANTHROPIC_API_KEY.includes("...your-anthropic-key") &&
+      !process.env.ANTHROPIC_API_KEY.startsWith("sk-ant-placeholder")
+    );
+    const hasGemini = Boolean(
+      (process.env.GEMINI_API_KEY && !process.env.GEMINI_API_KEY.includes("...your-gemini-api-key")) ||
+      (process.env.GOOGLE_API_KEY && !process.env.GOOGLE_API_KEY.includes("...your-gemini-api-key"))
+    );
+
+    // Prioritize providers whose API keys are configured and ready in environment
+    targets.sort((a, b) => {
+      const aReady =
+        (a.externalModel.providerKey === "gemini" && hasGemini) ||
+        (a.externalModel.providerKey === "openai" && hasOpenAI) ||
+        (a.externalModel.providerKey === "anthropic" && hasAnthropic);
+      const bReady =
+        (b.externalModel.providerKey === "gemini" && hasGemini) ||
+        (b.externalModel.providerKey === "openai" && hasOpenAI) ||
+        (b.externalModel.providerKey === "anthropic" && hasAnthropic);
+
+      if (aReady && !bReady) return -1;
+      if (!aReady && bReady) return 1;
+      return 0;
+    });
+
     return targets;
   }
 

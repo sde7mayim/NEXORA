@@ -260,7 +260,7 @@ export const NEXORA_MODEL_VERSIONS: NexoraModelVersion[] = [
 // IMMUTABLE MODEL ROUTES (Prioritized Primary and Fallback targets)
 // ============================================================================
 export const MODEL_ROUTES: NexoraModelRoute[] = [
-  // Nexora Swift 1.0: Primary Anthropic Haiku, Fallback OpenAI GPT-4o-mini
+  // Nexora Swift 1.0: Primary Anthropic Haiku, Fallback OpenAI GPT-4o-mini, Fallback Gemini 1.5 Flash
   {
     modelVersionId: "nexora-swift@1.0.0",
     externalModelId: "anthropic:claude-3-5-haiku",
@@ -275,8 +275,15 @@ export const MODEL_ROUTES: NexoraModelRoute[] = [
     routeRole: "fallback",
     enabled: true,
   },
+  {
+    modelVersionId: "nexora-swift@1.0.0",
+    externalModelId: "gemini:gemini-1.5-flash",
+    priority: 3,
+    routeRole: "fallback",
+    enabled: true,
+  },
 
-  // Nexora Core 1.0: Primary OpenAI GPT-4o-mini, Fallback Anthropic Haiku
+  // Nexora Core 1.0: Primary OpenAI GPT-4o-mini, Fallback Gemini 1.5 Flash, Fallback Anthropic Haiku
   {
     modelVersionId: "nexora-core@1.0.0",
     externalModelId: "openai:gpt-4o-mini",
@@ -286,13 +293,20 @@ export const MODEL_ROUTES: NexoraModelRoute[] = [
   },
   {
     modelVersionId: "nexora-core@1.0.0",
+    externalModelId: "gemini:gemini-1.5-flash",
+    priority: 2,
+    routeRole: "fallback",
+    enabled: true,
+  },
+  {
+    modelVersionId: "nexora-core@1.0.0",
     externalModelId: "anthropic:claude-3-5-haiku",
-    priority: 2,
+    priority: 3,
     routeRole: "fallback",
     enabled: true,
   },
 
-  // Nexora Reason 1.0: Primary Anthropic Sonnet, Fallback OpenAI GPT-4o
+  // Nexora Reason 1.0: Primary Anthropic Sonnet, Fallback OpenAI GPT-4o, Fallback Gemini 1.5 Pro
   {
     modelVersionId: "nexora-reason@1.0.0",
     externalModelId: "anthropic:claude-3-5-sonnet",
@@ -307,8 +321,15 @@ export const MODEL_ROUTES: NexoraModelRoute[] = [
     routeRole: "fallback",
     enabled: true,
   },
+  {
+    modelVersionId: "nexora-reason@1.0.0",
+    externalModelId: "gemini:gemini-1.5-pro",
+    priority: 3,
+    routeRole: "fallback",
+    enabled: true,
+  },
 
-  // Nexora Vision 1.0: Primary OpenAI GPT-4o, Fallback Anthropic Sonnet
+  // Nexora Vision 1.0: Primary OpenAI GPT-4o, Fallback Anthropic Sonnet, Fallback Gemini 1.5 Pro
   {
     modelVersionId: "nexora-vision@1.0.0",
     externalModelId: "openai:gpt-4o",
@@ -320,6 +341,13 @@ export const MODEL_ROUTES: NexoraModelRoute[] = [
     modelVersionId: "nexora-vision@1.0.0",
     externalModelId: "anthropic:claude-3-5-sonnet",
     priority: 2,
+    routeRole: "fallback",
+    enabled: true,
+  },
+  {
+    modelVersionId: "nexora-vision@1.0.0",
+    externalModelId: "gemini:gemini-1.5-pro",
+    priority: 3,
     routeRole: "fallback",
     enabled: true,
   },

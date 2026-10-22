@@ -6,18 +6,19 @@ export class GeminiAdapter implements AIProviderAdapter {
 
   constructor() {
     const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-    if (key && !key.startsWith("AQ...")) {
-      this.apiKey = key;
+    if (key && !key.includes("...your-gemini-api-key")) {
+      this.apiKey = key.trim();
     }
   }
 
   private getApiKey(): string {
-    if (!this.apiKey) {
+    const key = this.apiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    if (!key || key.includes("...your-gemini-api-key")) {
       throw new Error(
         "Gemini API key is not configured. Set GEMINI_API_KEY or GOOGLE_API_KEY in your environment."
       );
     }
-    return this.apiKey;
+    return key.trim();
   }
 
   async generateCompletion(
