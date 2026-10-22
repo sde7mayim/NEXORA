@@ -165,7 +165,11 @@ export class ModelRouter {
       return 0;
     });
 
-    return targets;
+    // Ensure top prioritized route is primary and subsequent are fallback
+    return targets.map((t, idx) => ({
+      ...t,
+      routeRole: idx === 0 ? "primary" : "fallback",
+    }));
   }
 
   /**
