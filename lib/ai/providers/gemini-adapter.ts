@@ -1,18 +1,45 @@
+import fs from "fs";
+import path from "path";
 import { AIProviderAdapter, ChatChunk, ChatCompletionResponse } from "../types";
+
+function readEnvLocalKey(varName: string): string | null {
+  try {
+    const envPath = path.join(process.cwd(), ".env.local");
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, "utf8");
+      const match = content.match(new RegExp(`^${varName}=(.*)$`, "m"));
+      if (match && match[1]) {
+        return match[1].trim().replace(/^["']|["']$/g, "");
+      }
+    }
+  } catch {
+    // fallback gracefully
+  }
+  return null;
+}
 
 export class GeminiAdapter implements AIProviderAdapter {
   providerKey = "gemini" as const;
   private apiKey: string | null = null;
 
   constructor() {
-    const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    const key =
+      process.env.GEMINI_API_KEY ||
+      process.env.GOOGLE_API_KEY ||
+      readEnvLocalKey("GEMINI_API_KEY") ||
+      readEnvLocalKey("GOOGLE_API_KEY");
     if (key && !key.includes("...your-gemini-api-key")) {
       this.apiKey = key.trim();
     }
   }
 
   private getApiKey(): string {
-    const key = this.apiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    const key =
+      this.apiKey ||
+      process.env.GEMINI_API_KEY ||
+      process.env.GOOGLE_API_KEY ||
+      readEnvLocalKey("GEMINI_API_KEY") ||
+      readEnvLocalKey("GOOGLE_API_KEY");
     if (!key || key.includes("...your-gemini-api-key")) {
       throw new Error(
         "Gemini API key is not configured. Set GEMINI_API_KEY or GOOGLE_API_KEY in your environment."
@@ -36,7 +63,12 @@ export class GeminiAdapter implements AIProviderAdapter {
         parts: [{ text: m.content }],
       }));
 
-    const cleanModel = modelId.replace(/^(google:|gemini:)/, "") || "gemini-1.5-flash";
+    let cleanModel = modelId.replace(/^(google:|gemini:)/, "") || "gemini-flash-latest";
+    if (cleanModel.includes("1.5-flash") || cleanModel === "flash") {
+      cleanModel = "gemini-flash-latest";
+    } else if (cleanModel.includes("1.5-pro") || cleanModel === "pro") {
+      cleanModel = "gemini-pro-latest";
+    }
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${apiKey}`;
 
