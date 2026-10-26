@@ -367,11 +367,72 @@ If you did not request this, you can safely ignore this message.
     return list[list.length - 1];
   }
 
+  private static async deliverLiveEmail(email: DispatchedEmail): Promise<void> {
+    // 1. Resend API
+    const resendApiKey = process.env.RESEND_API_KEY;
+    if (resendApiKey) {
+      try {
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${resendApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: process.env.EMAIL_FROM || "NEXORA <onboarding@resend.dev>",
+            to: [email.recipientEmail],
+            subject: email.subject,
+            html: email.htmlContent,
+            text: email.textContent,
+          }),
+        });
+        email.status = "delivered";
+        return;
+      } catch (err) {
+        console.warn("[Live Mailer] Resend dispatch note:", err);
+      }
+    }
+
+    // 2. Nodemailer SMTP (Gmail / Custom SMTP)
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    if (smtpHost && smtpUser && smtpPass) {
+      try {
+        const nodemailer = await import("nodemailer");
+        const port = Number(process.env.SMTP_PORT || 465);
+        const transporter = nodemailer.createTransport({
+          host: smtpHost,
+          port,
+          secure: port === 465,
+          auth: {
+            user: smtpUser,
+            pass: smtpPass,
+          },
+        });
+
+        await transporter.sendMail({
+          from: process.env.EMAIL_FROM || `"NEXORA" <${smtpUser}>`,
+          to: email.recipientEmail,
+          subject: email.subject,
+          html: email.htmlContent,
+          text: email.textContent,
+        });
+        email.status = "delivered";
+        return;
+      } catch (err) {
+        console.warn("[Live Mailer] Nodemailer SMTP dispatch note:", err);
+      }
+    }
+  }
+
   private static saveEmail(email: DispatchedEmail): void {
     this.emailStore.push(email);
     if (this.emailStore.length > this.maxStoreSize) {
       this.emailStore.shift();
     }
+    // Attempt live delivery across internet
+    this.deliverLiveEmail(email).catch(() => {});
   }
 
   /**
