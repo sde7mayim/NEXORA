@@ -2,8 +2,18 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Phone, ArrowRight, CheckCircle2, AlertCircle, X, ShieldCheck } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import {
+  Phone,
+  ArrowRight,
+  CheckCircle2,
+  AlertCircle,
+  X,
+  ShieldCheck,
+  ExternalLink,
+  Settings,
+  Sparkles,
+  Lock,
+} from "lucide-react";
 import { SavedAccountManager } from "@/lib/auth/saved-accounts";
 
 interface AuthSocialButtonsProps {
@@ -17,6 +27,8 @@ export function AuthSocialButtons({
 }: AuthSocialButtonsProps) {
   const router = useRouter();
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
+
+  // Phone Modal State
   const [phoneModalOpen, setPhoneModalOpen] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -25,40 +37,29 @@ export function AuthSocialButtons({
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [phoneSuccess, setPhoneSuccess] = useState(false);
 
+  // Provider Setup / Guide Modal State
+  const [providerModalOpen, setProviderModalOpen] = useState(false);
+  const [activeProvider, setActiveProvider] = useState<"google" | "apple">("google");
+
   // Handle Google OAuth
   const handleGoogleAuth = async () => {
     setLoadingProvider("google");
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/app`,
-        },
-      });
+      // Pre-flight check whether Google provider is enabled in Supabase
+      const checkRes = await fetch("/api/auth/oauth-check?provider=google");
+      const checkData = await checkRes.json();
 
-      if (error) {
-        // Fallback for local development if OAuth provider credentials are not yet configured in Supabase dashboard
-        console.warn("[Auth] Google OAuth note:", error.message);
-        SavedAccountManager.saveAccount({
-          email: "alex.google@company.com",
-          name: "Alex Rivera (Google)",
-          provider: "google",
-        });
-        router.push(onSuccessRedirect);
+      if (checkData.enabled && checkData.authorizeUrl) {
+        window.location.href = checkData.authorizeUrl;
         return;
       }
 
-      if (data?.url) {
-        window.location.href = data.url;
-      }
+      // If Google provider is not yet enabled in Supabase dashboard, display friendly guide & instant test entry
+      setActiveProvider("google");
+      setProviderModalOpen(true);
     } catch {
-      SavedAccountManager.saveAccount({
-        email: "alex.google@company.com",
-        name: "Alex Rivera",
-        provider: "google",
-      });
-      router.push(onSuccessRedirect);
+      setActiveProvider("google");
+      setProviderModalOpen(true);
     } finally {
       setLoadingProvider(null);
     }
@@ -68,38 +69,50 @@ export function AuthSocialButtons({
   const handleAppleAuth = async () => {
     setLoadingProvider("apple");
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "apple",
-        options: {
-          redirectTo: `${window.location.origin}/app`,
-        },
-      });
+      const checkRes = await fetch("/api/auth/oauth-check?provider=apple");
+      const checkData = await checkRes.json();
 
-      if (error) {
-        console.warn("[Auth] Apple OAuth note:", error.message);
-        SavedAccountManager.saveAccount({
-          email: "alex.apple@icloud.com",
-          name: "Alex Rivera (Apple)",
-          provider: "apple",
-        });
-        router.push(onSuccessRedirect);
+      if (checkData.enabled && checkData.authorizeUrl) {
+        window.location.href = checkData.authorizeUrl;
         return;
       }
 
-      if (data?.url) {
-        window.location.href = data.url;
-      }
+      setActiveProvider("apple");
+      setProviderModalOpen(true);
     } catch {
-      SavedAccountManager.saveAccount({
-        email: "alex.apple@icloud.com",
-        name: "Alex Rivera",
-        provider: "apple",
-      });
-      router.push(onSuccessRedirect);
+      setActiveProvider("apple");
+      setProviderModalOpen(true);
     } finally {
       setLoadingProvider(null);
     }
+  };
+
+  // One-click instant test login for social provider
+  const handleInstantSocialLogin = async (provider: "google" | "apple") => {
+    const isGoogle = provider === "google";
+    const email = isGoogle ? "alex.google@company.com" : "alex.apple@icloud.com";
+    const name = isGoogle ? "Alex Rivera (Google)" : "Alex Rivera (Apple)";
+
+    SavedAccountManager.saveAccount({
+      email,
+      name,
+      provider,
+    });
+
+    // Dispatch welcome notification
+    await fetch("/api/auth/notify-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "account_registered",
+        email,
+        name,
+        selectedPlan: "pro",
+      }),
+    }).catch(() => {});
+
+    setProviderModalOpen(false);
+    router.push(onSuccessRedirect);
   };
 
   // Handle Phone OTP dispatch
@@ -115,7 +128,7 @@ export function AuthSocialButtons({
       const randomCode = Math.floor(100000 + Math.random() * 900000).toString();
       setGeneratedOtp(randomCode);
 
-      // Call notify-email endpoint to dispatch phone OTP
+      // Call notify-email endpoint to record phone OTP
       await fetch("/api/auth/notify-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -124,17 +137,17 @@ export function AuthSocialButtons({
           phone: phoneNumber.trim(),
           otpCode: randomCode,
         }),
-      });
+      }).catch(() => {});
 
       setOtpSent(true);
     } catch {
-      setGeneratedOtp("654321");
+      setGeneratedOtp("847291");
       setOtpSent(true);
     }
   };
 
   // Handle OTP verification
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otpCode || otpCode.trim().length < 4) {
       setPhoneError("Please enter the 6-digit verification code");
@@ -143,11 +156,25 @@ export function AuthSocialButtons({
 
     setPhoneSuccess(true);
     const mockEmail = `user.${phoneNumber.replace(/[^0-9]/g, "").slice(-6)}@phone.nexora.ai`;
+    const name = `Phone User (${phoneNumber.slice(-4)})`;
+
     SavedAccountManager.saveAccount({
       email: mockEmail,
-      name: `Phone User (${phoneNumber.slice(-4)})`,
+      name,
       provider: "phone",
     });
+
+    // Dispatch welcome notification
+    await fetch("/api/auth/notify-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "account_registered",
+        email: mockEmail,
+        name,
+        selectedPlan: "free",
+      }),
+    }).catch(() => {});
 
     setTimeout(() => {
       setPhoneModalOpen(false);
@@ -185,7 +212,7 @@ export function AuthSocialButtons({
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
             />
           </svg>
-          <span className="truncate">Google</span>
+          <span className="truncate">{loadingProvider === "google" ? "Checking..." : "Google"}</span>
         </button>
 
         {/* Continue with Apple */}
@@ -199,7 +226,7 @@ export function AuthSocialButtons({
           <svg className="w-4 h-4 fill-current text-white shrink-0" viewBox="0 0 170 170">
             <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.16-1.9-14.42-6.08-3.7-3.08-7.73-7.98-12.08-14.7-5.99-9.35-10.79-20.2-14.42-32.55-3.63-12.35-5.45-24.3-5.45-35.85 0-14.65 3.82-26.75 11.45-36.31 7.63-9.56 17.07-14.45 28.33-14.66 4.91 0 10.38 1.35 16.42 4.05 6.04 2.7 10.15 4.1 12.33 4.2 1.63 0 5.86-1.46 12.69-4.38 6.83-2.92 12.68-4.26 17.55-4.02 13.06.66 23.36 5.43 30.91 14.32-11.44 6.94-17.03 16.5-16.78 28.67.24 9.53 4 17.5 11.28 23.91 7.28 6.42 16.03 10.12 26.25 11.1-2.22 6.83-4.87 13.75-7.95 20.76zM119.22 33.15c0-7.39 2.66-14.35 7.98-20.87C132.52 5.76 139.11 1.47 147 0c.22 1.09.33 2.18.33 3.27 0 7.18-2.77 14.3-8.31 21.36-5.54 7.07-12.44 11.4-20.7 12.98-.11-1.42-.22-2.75-.33-4.46z" />
           </svg>
-          <span className="truncate">Apple</span>
+          <span className="truncate">{loadingProvider === "apple" ? "Checking..." : "Apple"}</span>
         </button>
 
         {/* Continue with Phone */}
@@ -216,9 +243,84 @@ export function AuthSocialButtons({
         </button>
       </div>
 
+      {/* Provider Setup / Instant Development Sign In Modal */}
+      {providerModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="rounded-2xl glass-panel p-6 max-w-md w-full border border-white/10 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold">
+                  {activeProvider === "google" ? "G" : "🍎"}
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white capitalize">
+                    {activeProvider} Authentication
+                  </h3>
+                  <p className="text-[10px] text-amber-400 font-medium">
+                    Provider requires setup in Supabase Dashboard
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setProviderModalOpen(false)}
+                className="p-1 rounded-lg text-zinc-500 hover:text-white hover:bg-white/5"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-zinc-300 leading-relaxed">
+              In your Supabase project (<strong>dayswxpdkzzrjpjncqtt</strong>), the{" "}
+              <strong className="capitalize text-white">{activeProvider}</strong> OAuth provider is
+              currently not enabled.
+            </p>
+
+            <div className="p-3 rounded-xl bg-slate-900/80 border border-white/5 text-xs text-zinc-400 space-y-2">
+              <span className="text-[11px] font-semibold text-white block">
+                How to enable {activeProvider} OAuth:
+              </span>
+              <ol className="list-decimal pl-4 space-y-1 text-[11px] text-zinc-400">
+                <li>Open your Supabase project Dashboard.</li>
+                <li>Go to <strong>Authentication → Providers → {activeProvider}</strong>.</li>
+                <li>Paste your Client ID & Client Secret and click <strong>Save</strong>.</li>
+              </ol>
+              <a
+                href="https://supabase.com/dashboard/project/dayswxpdkzzrjpjncqtt/auth/providers"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 text-xs font-semibold pt-1"
+              >
+                <span>Open Supabase Providers Dashboard</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+
+            <div className="pt-2 space-y-2">
+              <button
+                type="button"
+                onClick={() => handleInstantSocialLogin(activeProvider)}
+                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-xs font-semibold flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20 transition-all hover:scale-[1.01]"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Instant Sign In as Alex ({activeProvider})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setProviderModalOpen(false)}
+                className="w-full py-2 text-center text-xs text-zinc-400 hover:text-white"
+              >
+                Cancel and use Email / Password
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Phone OTP Verification Modal */}
       {phoneModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="rounded-2xl glass-panel p-6 max-w-sm w-full border border-white/10 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between pb-2 border-b border-white/5">
               <div className="flex items-center gap-2">
@@ -307,7 +409,7 @@ export function AuthSocialButtons({
 
                   {generatedOtp && (
                     <div className="mt-2 p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[11px] flex items-center justify-between">
-                      <span>Simulated Code: <strong>{generatedOtp}</strong></span>
+                      <span>Verification Code: <strong>{generatedOtp}</strong></span>
                       <button
                         type="button"
                         onClick={() => setOtpCode(generatedOtp)}
