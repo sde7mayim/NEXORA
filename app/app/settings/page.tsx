@@ -28,8 +28,8 @@ interface DispatchedEmailItem {
 }
 
 export default function WorkspaceSettingsPage() {
-  const [fullName, setFullName] = useState("Alex Rivera");
-  const [email, setEmail] = useState("alex@company.com");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [defaultModel, setDefaultModel] = useState("nexora-core");
@@ -42,6 +42,14 @@ export default function WorkspaceSettingsPage() {
   // Load active user session or remembered account
   useEffect(() => {
     const loadUser = async () => {
+      // 1. Immediately check remembered account
+      const remembered = SavedAccountManager.getRememberedAccount();
+      if (remembered?.email) {
+        setEmail(remembered.email);
+        if (remembered.name) setFullName(remembered.name);
+      }
+
+      // 2. Query Supabase session
       try {
         const supabase = createClient();
         const { data } = await supabase.auth.getUser();
@@ -50,21 +58,11 @@ export default function WorkspaceSettingsPage() {
           if (data.user.user_metadata?.full_name) {
             setFullName(data.user.user_metadata.full_name);
           }
-        } else {
-          const remembered = SavedAccountManager.getRememberedAccount();
-          if (remembered?.email) {
-            setEmail(remembered.email);
-            if (remembered.name) setFullName(remembered.name);
-          }
         }
-      } catch {
-        const remembered = SavedAccountManager.getRememberedAccount();
-        if (remembered?.email) {
-          setEmail(remembered.email);
-          if (remembered.name) setFullName(remembered.name);
-        }
-      }
+      } catch {}
     };
+
+    loadUser();
 
     const fetchEmails = async () => {
       try {

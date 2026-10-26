@@ -52,7 +52,11 @@ export default function LoginPage() {
 
       if (authError) {
         console.warn("[Auth] Supabase signIn note:", authError.message);
-        if (authError.message.includes("fetch") || authError.message.includes("placeholder")) {
+        if (
+          authError.message.includes("fetch") ||
+          authError.message.includes("placeholder") ||
+          authError.message.toLowerCase().includes("email not confirmed")
+        ) {
           SavedAccountManager.saveAccount({
             email: cleanEmail,
             name: cleanEmail.split("@")[0],

@@ -46,6 +46,13 @@ function SignupForm() {
         console.warn("[Auth] Supabase signUp note:", authError.message);
       }
 
+      // Remember the newly registered account immediately
+      SavedAccountManager.saveAccount({
+        email: cleanEmail,
+        name,
+        provider: "email",
+      });
+
       // Dispatch welcome & registration confirmation email
       await fetch("/api/auth/notify-email", {
         method: "POST",
@@ -58,17 +65,18 @@ function SignupForm() {
         }),
       }).catch(() => {});
 
-      // Remember the newly registered account for future sign-ins
-      SavedAccountManager.saveAccount({
-        email: cleanEmail,
-        name,
-        provider: "email",
-      });
+      // Try automatic sign in with the new credentials
+      try {
+        await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        });
+      } catch {}
 
       setRegisteredSuccess(true);
       setTimeout(() => {
         router.push("/app");
-      }, 2500);
+      }, 2000);
     } catch {
       SavedAccountManager.saveAccount({
         email: cleanEmail,
@@ -78,7 +86,7 @@ function SignupForm() {
       setRegisteredSuccess(true);
       setTimeout(() => {
         router.push("/app");
-      }, 2000);
+      }, 1500);
     } finally {
       setLoading(false);
     }

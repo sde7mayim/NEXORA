@@ -37,12 +37,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [userPlan, setUserPlan] = useState<"free" | "pro" | "enterprise">("enterprise");
   const [currentWorkspace, setCurrentWorkspace] = useState("Acme Corp AI Labs");
   const [workspaceDropdownOpen, setWorkspaceDropdownOpen] = useState(false);
-  const [userName, setUserName] = useState("Alex Rivera");
-  const [userEmail, setUserEmail] = useState("alex@company.com");
-  const [avatarInitial, setAvatarInitial] = useState("A");
+  const [userName, setUserName] = useState<string>("");
+  const [userEmail, setUserEmail] = useState<string>("");
+  const [avatarInitial, setAvatarInitial] = useState<string>("U");
 
   useEffect(() => {
     const loadProfile = async () => {
+      // 1. Immediately read remembered account from storage
+      const remembered = SavedAccountManager.getRememberedAccount();
+      if (remembered?.email) {
+        setUserEmail(remembered.email);
+        setUserName(remembered.name || remembered.email.split("@")[0]);
+        setAvatarInitial(remembered.avatarInitial || remembered.email[0].toUpperCase());
+      }
+
+      // 2. Cross-reference with Supabase active session
       try {
         const supabase = createClient();
         const { data } = await supabase.auth.getUser();
@@ -52,15 +61,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           setUserName(name);
           setAvatarInitial(name[0].toUpperCase());
           SavedAccountManager.saveAccount({ email: data.user.email, name });
-        } else {
-          const remembered = SavedAccountManager.getRememberedAccount();
-          if (remembered) {
-            setUserEmail(remembered.email);
-            if (remembered.name) setUserName(remembered.name);
-            setAvatarInitial(remembered.avatarInitial);
-          }
+        } else if (!remembered?.email) {
+          setUserEmail("guest@nexora.ai");
+          setUserName("Nexora User");
+          setAvatarInitial("N");
         }
-      } catch {}
+      } catch {
+        if (!remembered?.email) {
+          setUserEmail("guest@nexora.ai");
+          setUserName("Nexora User");
+          setAvatarInitial("N");
+        }
+      }
     };
     loadProfile();
   }, []);
