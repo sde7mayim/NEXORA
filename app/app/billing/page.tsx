@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CreditCard, Check, ShieldCheck, AlertCircle, Sparkles } from "lucide-react";
 import { PLAN_CONFIGS } from "@/lib/entitlements/types";
 import { formatPrice } from "@/lib/utils";
+import { SavedAccountManager } from "@/lib/auth/saved-accounts";
 
 export default function WorkspaceBillingPage() {
   const [currentPlan, setCurrentPlan] = useState<"free" | "pro" | "enterprise">("pro");
@@ -15,15 +16,18 @@ export default function WorkspaceBillingPage() {
     setStatusMessage(null);
 
     try {
-      const res = await fetch("/api/billing/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          planTier: targetPlan,
-          userId: "usr_mock_123",
-          userEmail: "alex@company.com",
-        }),
-      });
+        const remembered = SavedAccountManager.getRememberedAccount();
+        const activeEmail = remembered?.email || "thzcreterz05@gmail.com";
+
+        const res = await fetch("/api/billing/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            planTier: targetPlan,
+            userId: "usr_active",
+            userEmail: activeEmail,
+          }),
+        });
 
       const data = await res.json();
       if (!res.ok) {

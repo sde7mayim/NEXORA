@@ -29,9 +29,9 @@ export default function EnterpriseWorkspacePage() {
     {
       id: "m-1",
       workspaceId: "ws-default",
-      userId: "usr_alex",
-      userName: "Alex Rivera",
-      userEmail: "alex@acme.com",
+      userId: "usr_joshua",
+      userName: "Joshua Suriyan",
+      userEmail: "thzcreterz05@gmail.com",
       role: "owner",
       joinedAt: "2026-10-01",
     },
@@ -76,7 +76,7 @@ export default function EnterpriseWorkspacePage() {
   // Assertion Simulator State
   const [testAssertionIssuer, setTestAssertionIssuer] = useState("https://identity.okta.com/app/exk12345/sso/saml");
   const [testAssertionAudience, setTestAssertionAudience] = useState("https://app.nexora.ai/saml/sp");
-  const [testAssertionEmail, setTestAssertionEmail] = useState("alex@acme.com");
+  const [testAssertionEmail, setTestAssertionEmail] = useState("thzcreterz05@gmail.com");
   const [testAssertionResult, setTestAssertionResult] = useState<{
     valid: boolean;
     claims?: { email: string; name?: string; issuer: string; audience: string; sessionIndex?: string };
@@ -112,14 +112,14 @@ export default function EnterpriseWorkspacePage() {
     {
       id: "aud-1",
       action: "workspace.updated",
-      actor: "alex@acme.com",
+      actor: "thzcreterz05@gmail.com",
       target: "Acme Corp AI Labs",
       timestamp: "2026-10-21 09:00",
     },
     {
       id: "aud-2",
       action: "policy.updated",
-      actor: "alex@acme.com",
+      actor: "thzcreterz05@gmail.com",
       target: "Spending Cap ₹50,000",
       timestamp: "2026-10-21 10:15",
     },

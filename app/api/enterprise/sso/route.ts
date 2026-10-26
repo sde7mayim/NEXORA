@@ -61,8 +61,8 @@ export async function POST(req: NextRequest) {
       SsoService.verifyConfiguration(orgId);
       AuditLogger.log({
         orgId,
-        actorId: "usr_alex",
-        actorEmail: "alex@acme.com",
+        actorId: "usr_joshua",
+        actorEmail: "thzcreterz05@gmail.com",
         action: "sso.verified",
         targetType: "sso_configuration",
         targetId: orgId,

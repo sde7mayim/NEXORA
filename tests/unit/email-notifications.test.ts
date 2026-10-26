@@ -30,8 +30,8 @@ describe("EmailNotificationService", () => {
 
   it("should dispatch account_updated security alert email with updated attributes and timestamp", async () => {
     const email = await EmailNotificationService.sendAccountUpdatedEmail({
-      email: "alex@acme.com",
-      name: "Alex Rivera",
+      email: "thzcreterz05@gmail.com",
+      name: "Joshua Suriyan",
       updatedFields: ["Display Name", "Account Password Changed"],
       clientIp: "192.168.1.1",
     });

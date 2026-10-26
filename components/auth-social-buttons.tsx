@@ -169,11 +169,10 @@ export function AuthSocialButtons({
     }
   };
 
-  // One-click instant test login for social provider
+  // One-click instant owner sign-in (Joshua Suriyan)
   const handleInstantSocialLogin = async (provider: "google" | "apple") => {
-    const isGoogle = provider === "google";
-    const email = isGoogle ? "alex.google@company.com" : "alex.apple@icloud.com";
-    const name = isGoogle ? "Alex Rivera (Google)" : "Alex Rivera (Apple)";
+    const email = "thzcreterz05@gmail.com";
+    const name = "Joshua Suriyan";
 
     SavedAccountManager.saveAccount({
       email,
@@ -181,7 +180,7 @@ export function AuthSocialButtons({
       provider,
     });
 
-    // Dispatch welcome notification
+    // Dispatch welcome notification to owner
     await fetch("/api/auth/notify-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -189,7 +188,7 @@ export function AuthSocialButtons({
         action: "account_registered",
         email,
         name,
-        selectedPlan: "pro",
+        selectedPlan: "enterprise",
       }),
     }).catch(() => {});
 
@@ -385,7 +384,7 @@ export function AuthSocialButtons({
                 className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-xs font-semibold flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20 transition-all hover:scale-[1.01]"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>Instant Sign In as Alex ({activeProvider})</span>
+                <span>Sign In as Owner (Joshua Suriyan)</span>
               </button>
 
               <button

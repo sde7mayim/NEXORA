@@ -20,6 +20,25 @@ export async function POST(req: NextRequest) {
           name,
           selectedPlan,
         });
+
+        // Trigger real email delivery via Supabase Auth OTP/MagicLink if key is present
+        try {
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://dayswxpdkzzrjpjncqtt.supabase.co";
+          const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+          if (supabaseUrl && serviceKey) {
+            const { createClient } = await import("@supabase/supabase-js");
+            const supabaseAdmin = createClient(supabaseUrl, serviceKey);
+            await supabaseAdmin.auth.signInWithOtp({
+              email: email.toLowerCase().trim(),
+              options: {
+                emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/app`,
+              },
+            });
+          }
+        } catch (supaErr) {
+          console.warn("[Auth Mailer] Supabase email dispatch note:", supaErr);
+        }
+
         break;
       }
       case "account_updated": {

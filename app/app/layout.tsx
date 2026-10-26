@@ -43,12 +43,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const loadProfile = async () => {
+      const applyIdentity = (email: string, rawName?: string) => {
+        const clean = email.toLowerCase().trim();
+        const isOwner = clean === "thzcreterz05@gmail.com";
+        const finalName = isOwner ? "Joshua Suriyan" : (rawName || clean.split("@")[0]);
+        setUserEmail(clean);
+        setUserName(finalName);
+        setAvatarInitial(finalName[0].toUpperCase());
+        if (isOwner) {
+          setUserPlan("enterprise");
+        }
+      };
+
       // 1. Immediately read remembered account from storage
       const remembered = SavedAccountManager.getRememberedAccount();
       if (remembered?.email) {
-        setUserEmail(remembered.email);
-        setUserName(remembered.name || remembered.email.split("@")[0]);
-        setAvatarInitial(remembered.avatarInitial || remembered.email[0].toUpperCase());
+        applyIdentity(remembered.email, remembered.name);
       }
 
       // 2. Cross-reference with Supabase active session
@@ -56,10 +66,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         const supabase = createClient();
         const { data } = await supabase.auth.getUser();
         if (data.user?.email) {
-          setUserEmail(data.user.email);
           const name = data.user.user_metadata?.full_name || data.user.email.split("@")[0];
-          setUserName(name);
-          setAvatarInitial(name[0].toUpperCase());
+          applyIdentity(data.user.email, name);
           SavedAccountManager.saveAccount({ email: data.user.email, name });
         } else if (!remembered?.email) {
           setUserEmail("guest@nexora.ai");

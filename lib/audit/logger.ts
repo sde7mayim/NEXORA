@@ -33,8 +33,8 @@ export class AuditLogger {
     {
       id: "aud-1",
       orgId: "ws-default",
-      actorId: "usr_alex",
-      actorEmail: "alex@acme.com",
+      actorId: "usr_joshua",
+      actorEmail: "thzcreterz05@gmail.com",
       action: "workspace.updated",
       targetType: "workspace",
       targetId: "ws-default",
@@ -45,8 +45,8 @@ export class AuditLogger {
     {
       id: "aud-2",
       orgId: "ws-default",
-      actorId: "usr_alex",
-      actorEmail: "alex@acme.com",
+      actorId: "usr_joshua",
+      actorEmail: "thzcreterz05@gmail.com",
       action: "policy.updated",
       targetType: "policy",
       targetId: "ws-default",

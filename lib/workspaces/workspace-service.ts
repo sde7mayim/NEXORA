@@ -78,9 +78,9 @@ export class WorkspaceService {
         {
           id: "m-1",
           workspaceId: "ws-default",
-          userId: "usr_alex",
-          userName: "Alex Rivera",
-          userEmail: "alex@acme.com",
+          userId: "usr_joshua",
+          userName: "Joshua Suriyan",
+          userEmail: "thzcreterz05@gmail.com",
           role: "owner",
           joinedAt: "2026-10-01T00:00:00Z",
         },

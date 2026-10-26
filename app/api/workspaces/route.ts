@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, slug, userId = "usr_alex", userEmail = "alex@acme.com", userName = "Alex Rivera" } = body;
+    const { name, slug, userId = "usr_joshua", userEmail = "thzcreterz05@gmail.com", userName = "Joshua Suriyan" } = body;
 
     if (!name || !slug) {
       return NextResponse.json({ error: "Missing required fields: name and slug." }, { status: 400 });
