@@ -38,7 +38,7 @@ function SignupForm() {
             full_name: name,
             selected_plan: plan,
           },
-          emailRedirectTo: `${window.location.origin}/app`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/app`,
         },
       });
 
