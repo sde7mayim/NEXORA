@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Sparkles,
   MessageSquare,
@@ -27,13 +27,51 @@ import {
   Code2,
 } from "lucide-react";
 import { getAppVersionDisplay } from "@/lib/version";
+import { createClient } from "@/lib/supabase/client";
+import { SavedAccountManager } from "@/lib/auth/saved-accounts";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userPlan, setUserPlan] = useState<"free" | "pro" | "enterprise">("enterprise");
   const [currentWorkspace, setCurrentWorkspace] = useState("Acme Corp AI Labs");
   const [workspaceDropdownOpen, setWorkspaceDropdownOpen] = useState(false);
+  const [userName, setUserName] = useState("Alex Rivera");
+  const [userEmail, setUserEmail] = useState("alex@company.com");
+  const [avatarInitial, setAvatarInitial] = useState("A");
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase.auth.getUser();
+        if (data.user?.email) {
+          setUserEmail(data.user.email);
+          const name = data.user.user_metadata?.full_name || data.user.email.split("@")[0];
+          setUserName(name);
+          setAvatarInitial(name[0].toUpperCase());
+          SavedAccountManager.saveAccount({ email: data.user.email, name });
+        } else {
+          const remembered = SavedAccountManager.getRememberedAccount();
+          if (remembered) {
+            setUserEmail(remembered.email);
+            if (remembered.name) setUserName(remembered.name);
+            setAvatarInitial(remembered.avatarInitial);
+          }
+        }
+      } catch {}
+    };
+    loadProfile();
+  }, []);
+
+  const handleSignOut = async () => {
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut().catch(() => {});
+    } catch {}
+    router.push("/login");
+  };
 
   const navigation = [
     { name: "New Chat", href: "/app", icon: Plus, highlight: true },
@@ -165,18 +203,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* User Card & Version info */}
         <div className="pt-4 border-t border-white/5 space-y-3">
           <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 border border-white/5">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-indigo-600/30 border border-indigo-500/30 flex items-center justify-center text-indigo-300 text-xs font-bold">
-                N
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-7 h-7 rounded-lg bg-indigo-600/30 border border-indigo-500/30 flex items-center justify-center text-indigo-300 text-xs font-bold shrink-0">
+                {avatarInitial}
               </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-medium text-white">Alex Rivera</span>
-                <span className="text-[10px] text-zinc-500">Personal Workspace</span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-medium text-white truncate">{userName}</span>
+                <span className="text-[10px] text-zinc-500 truncate">{userEmail}</span>
               </div>
             </div>
-            <Link href="/login" title="Sign out" className="text-zinc-500 hover:text-zinc-300 p-1">
+            <button
+              onClick={handleSignOut}
+              title="Sign out"
+              className="text-zinc-500 hover:text-rose-400 p-1 rounded-lg transition-colors"
+            >
               <LogOut className="w-3.5 h-3.5" />
-            </Link>
+            </button>
           </div>
           <div className="text-[10px] text-zinc-600 text-center font-mono">
             {getAppVersionDisplay()}

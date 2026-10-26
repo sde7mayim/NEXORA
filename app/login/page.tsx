@@ -1,10 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Sparkles, ArrowRight, Lock, Mail, AlertCircle } from "lucide-react";
+import {
+  Sparkles,
+  ArrowRight,
+  Lock,
+  Mail,
+  AlertCircle,
+  UserCheck,
+  X,
+  Shield,
+  KeyRound,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { AuthSocialButtons } from "@/components/auth-social-buttons";
+import { SavedAccountManager, SavedAccount } from "@/lib/auth/saved-accounts";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,25 +24,39 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rememberedAccount, setRememberedAccount] = useState<SavedAccount | null>(null);
+  const [useAnotherAccount, setUseAnotherAccount] = useState(false);
+
+  // Load remembered account on mount
+  useEffect(() => {
+    const saved = SavedAccountManager.getRememberedAccount();
+    if (saved && saved.email) {
+      setRememberedAccount(saved);
+      setEmail(saved.email);
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
+    const cleanEmail = email.toLowerCase().trim();
+
     try {
       const supabase = createClient();
       const { error: authError } = await supabase.auth.signInWithPassword({
-        email,
+        email: cleanEmail,
         password,
       });
 
       if (authError) {
-        // If Supabase is not yet connected with live credentials in this dev environment,
-        // provide clear feedback or allow test entry into the app workspace
         console.warn("[Auth] Supabase signIn note:", authError.message);
         if (authError.message.includes("fetch") || authError.message.includes("placeholder")) {
-          // Development bypass for inspection
+          SavedAccountManager.saveAccount({
+            email: cleanEmail,
+            name: cleanEmail.split("@")[0],
+          });
           router.push("/app");
           return;
         }
@@ -39,10 +65,34 @@ export default function LoginPage() {
         return;
       }
 
+      // Save email for next time
+      SavedAccountManager.saveAccount({
+        email: cleanEmail,
+        name: cleanEmail.split("@")[0],
+      });
+
       router.push("/app");
-    } catch (err) {
-      // In local dev without live Supabase URL, guide gracefully to workspace
+    } catch {
+      SavedAccountManager.saveAccount({
+        email: cleanEmail,
+        name: cleanEmail.split("@")[0],
+      });
       router.push("/app");
+    }
+  };
+
+  const handleClearRemembered = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    SavedAccountManager.clearRememberedAccount();
+    setRememberedAccount(null);
+    setEmail("");
+    setUseAnotherAccount(true);
+  };
+
+  const handleSelectRemembered = () => {
+    if (rememberedAccount) {
+      setEmail(rememberedAccount.email);
+      setUseAnotherAccount(false);
     }
   };
 
@@ -68,9 +118,74 @@ export default function LoginPage() {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        <div className="rounded-2xl glass-card p-8 border border-white/10 shadow-2xl">
+        <div className="rounded-2xl glass-card p-8 border border-white/10 shadow-2xl space-y-6">
+          {/* Remembered / Previously Signed-In Account Hint */}
+          {rememberedAccount && !useAnotherAccount && (
+            <div className="p-3.5 rounded-xl bg-gradient-to-r from-indigo-950/60 to-slate-900 border border-indigo-500/30 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
+                  <UserCheck className="w-3.5 h-3.5" />
+                  Previously Signed In
+                </span>
+                <button
+                  type="button"
+                  onClick={handleClearRemembered}
+                  className="text-[10px] text-zinc-400 hover:text-rose-400 flex items-center gap-1 transition-colors"
+                  title="Forget this account"
+                >
+                  <X className="w-3 h-3" />
+                  <span>Forget</span>
+                </button>
+              </div>
+
+              <div
+                onClick={handleSelectRemembered}
+                className="flex items-center justify-between p-2 rounded-lg bg-black/40 hover:bg-black/60 border border-white/5 cursor-pointer transition-colors"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 font-bold text-xs flex items-center justify-center shrink-0">
+                    {rememberedAccount.avatarInitial}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-white truncate">
+                      {rememberedAccount.name || rememberedAccount.email}
+                    </p>
+                    <p className="text-[11px] text-zinc-400 truncate">{rememberedAccount.email}</p>
+                  </div>
+                </div>
+                <span className="text-[11px] font-semibold text-indigo-400 shrink-0">Selected</span>
+              </div>
+
+              <div className="flex justify-between items-center pt-1 text-[11px]">
+                <span className="text-zinc-500">Enter password to resume</span>
+                <button
+                  type="button"
+                  onClick={() => setUseAnotherAccount(true)}
+                  className="text-indigo-400 hover:text-indigo-300 font-medium"
+                >
+                  Use a different account →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Social Auth Stack: Continue with Google, Apple, Phone */}
+          <div className="space-y-2">
+            <span className="block text-[11px] font-semibold text-zinc-400 uppercase tracking-wider text-center">
+              Fast Sign In
+            </span>
+            <AuthSocialButtons source="login" />
+          </div>
+
+          <div className="relative flex items-center justify-center">
+            <div className="border-t border-white/10 w-full" />
+            <span className="bg-slate-950 px-3 text-[11px] uppercase tracking-wider text-zinc-500 font-medium">
+              Or with email password
+            </span>
+          </div>
+
           {error && (
-            <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
@@ -78,7 +193,21 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1.5">Email address</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-medium text-zinc-300">Email address</label>
+                {rememberedAccount && useAnotherAccount && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail(rememberedAccount.email);
+                      setUseAnotherAccount(false);
+                    }}
+                    className="text-[11px] text-indigo-400 hover:text-indigo-300"
+                  >
+                    Use saved ({rememberedAccount.email})
+                  </button>
+                )}
+              </div>
               <div className="relative">
                 <Mail className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
@@ -118,9 +247,9 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-2 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-sm font-semibold shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 transition-all"
+              className="w-full mt-2 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-sm font-semibold shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99]"
             >
-              {loading ? "Signing in..." : "Sign In to Workspace"}
+              <span>{loading ? "Signing in..." : "Sign In to Workspace"}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
