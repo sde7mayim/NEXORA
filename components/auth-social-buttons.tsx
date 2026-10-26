@@ -41,11 +41,94 @@ export function AuthSocialButtons({
   const [providerModalOpen, setProviderModalOpen] = useState(false);
   const [activeProvider, setActiveProvider] = useState<"google" | "apple">("google");
 
-  // Handle Google OAuth
+  // Google Client ID for Direct Identity Services (Zero-Supabase Redirect)
+  const GOOGLE_CLIENT_ID =
+    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
+    "537571380975-qs2dssgt0uknpa9nl1rhjn7q2cesqb8a.apps.googleusercontent.com";
+
+  // Pre-load Google Identity Services script
+  const loadGoogleScript = (): Promise<void> => {
+    return new Promise((resolve) => {
+      if (typeof window === "undefined") return resolve();
+      if ((window as any).google?.accounts?.oauth2) return resolve();
+      const existing = document.getElementById("google-gsi-client");
+      if (existing) {
+        existing.addEventListener("load", () => resolve());
+        return;
+      }
+      const script = document.createElement("script");
+      script.id = "google-gsi-client";
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      script.onload = () => resolve();
+      script.onerror = () => resolve();
+      document.body.appendChild(script);
+    });
+  };
+
+  // Handle Google Direct / Identity Services Auth
   const handleGoogleAuth = async () => {
     setLoadingProvider("google");
+
+    // 1. Attempt Direct Google Identity Services (Displays NEXORA brand, no supabase.co)
+    if (typeof window !== "undefined") {
+      try {
+        await loadGoogleScript();
+        const googleObj = (window as any).google;
+        if (googleObj?.accounts?.oauth2) {
+          const client = googleObj.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_CLIENT_ID,
+            scope: "openid email profile",
+            callback: async (tokenResponse: any) => {
+              if (tokenResponse?.access_token) {
+                try {
+                  const userRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+                    headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+                  });
+                  const profile = await userRes.json();
+                  if (profile?.email) {
+                    const cleanEmail = profile.email.toLowerCase().trim();
+                    const cleanName = profile.name || profile.given_name || cleanEmail.split("@")[0];
+
+                    SavedAccountManager.saveAccount({
+                      email: cleanEmail,
+                      name: cleanName,
+                      provider: "google",
+                    });
+
+                    // Dispatch welcome & registration confirmation email
+                    await fetch("/api/auth/notify-email", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        action: "account_registered",
+                        email: cleanEmail,
+                        name: cleanName,
+                        selectedPlan: "pro",
+                      }),
+                    }).catch(() => {});
+
+                    router.push(onSuccessRedirect);
+                    return;
+                  }
+                } catch (e) {
+                  console.warn("[Google Identity] Profile fetch error:", e);
+                }
+              }
+            },
+          });
+          client.requestAccessToken({ prompt: "select_account" });
+          setLoadingProvider(null);
+          return;
+        }
+      } catch (err) {
+        console.warn("[Google Identity] Client-side token error:", err);
+      }
+    }
+
+    // 2. Fallback: Pre-flight check whether Google provider is enabled in Supabase
     try {
-      // Pre-flight check whether Google provider is enabled in Supabase
       const checkRes = await fetch("/api/auth/oauth-check?provider=google");
       const checkData = await checkRes.json();
 
@@ -54,7 +137,6 @@ export function AuthSocialButtons({
         return;
       }
 
-      // If Google provider is not yet enabled in Supabase dashboard, display friendly guide & instant test entry
       setActiveProvider("google");
       setProviderModalOpen(true);
     } catch {
