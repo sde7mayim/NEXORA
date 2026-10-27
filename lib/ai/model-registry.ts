@@ -283,17 +283,17 @@ export const MODEL_ROUTES: NexoraModelRoute[] = [
     enabled: true,
   },
 
-  // Nexora Core 1.0: Primary OpenAI GPT-4o-mini, Fallback Gemini 1.5 Flash, Fallback Anthropic Haiku
+  // Nexora Core 1.0: Primary Gemini 1.5 Flash, Fallback OpenAI GPT-4o-mini, Fallback Anthropic Haiku
   {
     modelVersionId: "nexora-core@1.0.0",
-    externalModelId: "openai:gpt-4o-mini",
+    externalModelId: "gemini:gemini-1.5-flash",
     priority: 1,
     routeRole: "primary",
     enabled: true,
   },
   {
     modelVersionId: "nexora-core@1.0.0",
-    externalModelId: "gemini:gemini-1.5-flash",
+    externalModelId: "openai:gpt-4o-mini",
     priority: 2,
     routeRole: "fallback",
     enabled: true,

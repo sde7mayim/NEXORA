@@ -22,11 +22,55 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   AlertCircle,
+  MoreHorizontal,
+  Volume2,
+  VolumeX,
+  Download,
+  Lightbulb,
+  BookOpen,
 } from "lucide-react";
 import { NEXORA_MODEL_FAMILIES, EXTERNAL_MODELS } from "@/lib/ai/model-registry";
 import { ConversationStore, Conversation, ConversationMessage } from "@/lib/chat/conversation-store";
 import { ModelDetailsModal } from "@/components/model-details-modal";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
+
+const AVAILABLE_ACTION_MODELS = [
+  {
+    id: "nexora-core",
+    name: "Nexora Core",
+    badge: "Balanced",
+    desc: "Flagship default intelligence for high-precision reasoning.",
+    color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/30",
+  },
+  {
+    id: "gemini:gemini-1.5-flash",
+    name: "Gemini 1.5 Flash",
+    badge: "Google Flash",
+    desc: "Ultra-fast response latency with massive 1M context.",
+    color: "text-sky-400 bg-sky-500/10 border-sky-500/30",
+  },
+  {
+    id: "openai:gpt-4o-mini",
+    name: "GPT-4o Mini",
+    badge: "OpenAI",
+    desc: "Fast, everyday conversational intelligence.",
+    color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+  },
+  {
+    id: "anthropic:claude-3-5-sonnet",
+    name: "Claude 3.5 Sonnet",
+    badge: "Anthropic",
+    desc: "Sophisticated engineering reasoning and coding.",
+    color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+  },
+  {
+    id: "nexora-swift",
+    name: "Nexora Swift",
+    badge: "Fast",
+    desc: "Sub-second responsiveness for quick everyday questions.",
+    color: "text-purple-400 bg-purple-500/10 border-purple-500/30",
+  },
+];
 
 export default function ChatWorkspacePage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -40,6 +84,11 @@ export default function ChatWorkspacePage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [inspectingModelId, setInspectingModelId] = useState<string | null>(null);
+
+  // Interactive Message Actions State
+  const [openModelMenuMsgId, setOpenModelMenuMsgId] = useState<string | null>(null);
+  const [openMoreMenuMsgId, setOpenMoreMenuMsgId] = useState<string | null>(null);
+  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
 
   // Drawer / History state
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -67,6 +116,21 @@ export default function ChatWorkspacePage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Global click to close open action menus and speech cleanup
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      setOpenModelMenuMsgId(null);
+      setOpenMoreMenuMsgId(null);
+    };
+    window.addEventListener("click", handleGlobalClick);
+    return () => {
+      window.removeEventListener("click", handleGlobalClick);
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
 
   const selectConversation = (conv: Conversation) => {
     if (isStreaming) return;
@@ -272,6 +336,156 @@ export default function ChatWorkspacePage() {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleRegenerate = async (targetMsgId: string, overrideModel?: string) => {
+    if (isStreaming) return;
+    const modelToUse = overrideModel || selectedModel;
+    if (overrideModel) setSelectedModel(overrideModel);
+
+    const targetIdx = messages.findIndex((m) => m.id === targetMsgId);
+    if (targetIdx < 0) return;
+
+    // Keep all messages preceding this assistant message
+    const previousMessages = messages.slice(0, targetIdx);
+    if (previousMessages.length === 0) return;
+
+    setIsStreaming(true);
+    setOpenModelMenuMsgId(null);
+    setOpenMoreMenuMsgId(null);
+
+    const assistantMsgId = `msg_ast_${Date.now()}`;
+    const initialAssistantMessage: ConversationMessage = {
+      id: assistantMsgId,
+      role: "assistant",
+      content: "",
+      modelUsed: modelToUse,
+      createdAt: new Date().toISOString(),
+    };
+
+    const nextMessages = [...previousMessages, initialAssistantMessage];
+    setMessages(nextMessages);
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          modelSelectionId: modelToUse,
+          messages: previousMessages.map((m) => ({ role: m.role, content: m.content })),
+          includeWebSearch,
+          planTier: "pro",
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder("utf-8");
+      if (!reader) throw new Error("No readable stream received.");
+
+      let accumulatedText = "";
+      let modelAttribution = modelToUse;
+      let citationsList: Array<{ title: string; url: string; snippet: string }> = [];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.replace("data: ", ""));
+              if (data.type === "citations") citationsList = data.citations;
+              if (data.text) accumulatedText += data.text;
+              if (data.modelUsed) modelAttribution = data.modelUsed;
+              if (data.error) accumulatedText += `\n[Error: ${data.error}]`;
+
+              const updatedAssistantMsg: ConversationMessage = {
+                id: assistantMsgId,
+                role: "assistant",
+                content: accumulatedText,
+                modelUsed: modelAttribution,
+                createdAt: new Date().toISOString(),
+                citations: citationsList.length > 0 ? citationsList : undefined,
+              };
+
+              setMessages((prev) =>
+                prev.map((msg) => (msg.id === assistantMsgId ? updatedAssistantMsg : msg))
+              );
+
+              ConversationStore.saveMessage(activeConvId, updatedAssistantMsg);
+            } catch {}
+          }
+        }
+      }
+    } catch (err: unknown) {
+      if ((err as Error).name !== "AbortError") {
+        const errorMsg = (err as Error).message || "Connection failed";
+        const errorAssistantMsg: ConversationMessage = {
+          id: assistantMsgId,
+          role: "assistant",
+          content: `*Request error: ${errorMsg}.*`,
+          modelUsed: modelToUse,
+          createdAt: new Date().toISOString(),
+        };
+        setMessages((prev) =>
+          prev.map((msg) => (msg.id === assistantMsgId ? errorAssistantMsg : msg))
+        );
+        ConversationStore.saveMessage(activeConvId, errorAssistantMsg);
+      }
+    } finally {
+      setIsStreaming(false);
+      abortControllerRef.current = null;
+      setConversations(ConversationStore.getConversations());
+    }
+  };
+
+  const handleDownloadMarkdown = (content: string, id: string) => {
+    const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `nexora-response-${id.slice(-6)}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleToggleSpeech = (msgId: string, content: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (speakingMsgId === msgId) {
+      window.speechSynthesis.cancel();
+      setSpeakingMsgId(null);
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const plain = content
+      .replace(/[#*`_~\[\]()>-]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    const utterance = new SpeechSynthesisUtterance(plain);
+    utterance.rate = 1.0;
+    utterance.onend = () => setSpeakingMsgId(null);
+    utterance.onerror = () => setSpeakingMsgId(null);
+    setSpeakingMsgId(msgId);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handleQuickFollowUp = (promptText: string) => {
+    setOpenMoreMenuMsgId(null);
+    handleSendMessage(promptText);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -619,6 +833,163 @@ export default function ChatWorkspacePage() {
                               <ExternalLink className="w-3 h-3 shrink-0 text-zinc-500" />
                             </a>
                           ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Interactive Action Bar (ChatGPT / Gemini style): Copy, Reload, Change Model, More Options */}
+                    {msg.role === "assistant" && msg.content && !isStreaming && (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-3 border-t border-white/5 text-xs text-zinc-400">
+                        {/* 1. Copy Action */}
+                        <button
+                          onClick={() => copyToClipboard(msg.content, msg.id)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 hover:text-white transition-all text-[11px] font-medium"
+                          title="Copy full response"
+                        >
+                          {copiedId === msg.id ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                              <span className="text-emerald-400">Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>Copy</span>
+                            </>
+                          )}
+                        </button>
+
+                        {/* 2. Reload / Regenerate Action */}
+                        <button
+                          onClick={() => handleRegenerate(msg.id)}
+                          disabled={isStreaming}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 hover:text-white transition-all text-[11px] font-medium disabled:opacity-50"
+                          title="Regenerate this response"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Reload</span>
+                        </button>
+
+                        {/* 3. Change Model Action & Dropdown */}
+                        <div className="relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMoreMenuMsgId(null);
+                              setOpenModelMenuMsgId(openModelMenuMsgId === msg.id ? null : msg.id);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 hover:text-indigo-200 border border-indigo-500/20 transition-all text-[11px] font-medium"
+                            title="Change model and regenerate"
+                          >
+                            <Sparkles className="w-3 h-3 text-indigo-400" />
+                            <span>Change Model</span>
+                            <ChevronDown className="w-3 h-3 opacity-70" />
+                          </button>
+
+                          {openModelMenuMsgId === msg.id && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className="absolute left-0 bottom-full mb-2 w-64 rounded-xl bg-slate-900 border border-white/10 shadow-2xl p-2 z-40 backdrop-blur-xl space-y-1"
+                            >
+                              <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                                Switch Model &amp; Regenerate
+                              </div>
+                              {AVAILABLE_ACTION_MODELS.map((model) => (
+                                <button
+                                  key={model.id}
+                                  onClick={() => handleRegenerate(msg.id, model.id)}
+                                  className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white/5 text-left transition-colors group/item"
+                                >
+                                  <div>
+                                    <div className="text-xs font-semibold text-white group-hover/item:text-indigo-300 transition-colors flex items-center gap-1.5">
+                                      <span>{model.name}</span>
+                                      <span className={`text-[9px] px-1.5 py-0.2 rounded border font-mono ${model.color}`}>
+                                        {model.badge}
+                                      </span>
+                                    </div>
+                                    <p className="text-[10px] text-zinc-400 leading-tight mt-0.5 line-clamp-1">
+                                      {model.desc}
+                                    </p>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 4. More Options Action Dropdown */}
+                        <div className="relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenModelMenuMsgId(null);
+                              setOpenMoreMenuMsgId(openMoreMenuMsgId === msg.id ? null : msg.id);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 hover:text-white transition-all text-[11px] font-medium"
+                            title="More options"
+                          >
+                            <MoreHorizontal className="w-3.5 h-3.5" />
+                            <span>More</span>
+                          </button>
+
+                          {openMoreMenuMsgId === msg.id && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className="absolute left-0 bottom-full mb-2 w-56 rounded-xl bg-slate-900 border border-white/10 shadow-2xl p-1.5 z-40 backdrop-blur-xl space-y-1"
+                            >
+                              <button
+                                onClick={() => handleQuickFollowUp("Explain the above response in simpler, beginner-friendly terms with intuitive analogies.")}
+                                className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-white/5 text-left text-xs text-zinc-200 hover:text-white transition-colors"
+                              >
+                                <Lightbulb className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                <span>Explain Simpler</span>
+                              </button>
+                              <button
+                                onClick={() => handleQuickFollowUp("Provide a comprehensive, technical deep dive on the above topic with architecture and practical examples.")}
+                                className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-white/5 text-left text-xs text-zinc-200 hover:text-white transition-colors"
+                              >
+                                <BookOpen className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                                <span>Deep Dive / Expand</span>
+                              </button>
+                              <button
+                                onClick={() => handleQuickFollowUp("Summarize the key takeaways and conclusions of the above response into concise bullet points.")}
+                                className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-white/5 text-left text-xs text-zinc-200 hover:text-white transition-colors"
+                              >
+                                <FileText className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                                <span>Summarize Key Points</span>
+                              </button>
+                              <div className="h-px bg-white/10 my-1" />
+                              <button
+                                onClick={() => {
+                                  handleDownloadMarkdown(msg.content, msg.id);
+                                  setOpenMoreMenuMsgId(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-white/5 text-left text-xs text-zinc-200 hover:text-white transition-colors"
+                              >
+                                <Download className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                <span>Download Markdown (.md)</span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  handleToggleSpeech(msg.id, msg.content);
+                                  setOpenMoreMenuMsgId(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-white/5 text-left text-xs text-zinc-200 hover:text-white transition-colors"
+                              >
+                                {speakingMsgId === msg.id ? (
+                                  <>
+                                    <VolumeX className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                                    <span className="text-rose-300">Stop Reading</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Volume2 className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                                    <span>Read Aloud</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

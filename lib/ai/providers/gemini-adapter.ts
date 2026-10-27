@@ -63,10 +63,16 @@ export class GeminiAdapter implements AIProviderAdapter {
         parts: [{ text: m.content }],
       }));
 
-    let candidateModels = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-2.5-flash-lite"];
+    let candidateModels = [
+      "gemini-3.5-flash",
+      "gemini-flash-lite-latest",
+      "gemini-3.1-flash-lite",
+      "gemini-3.7-flash",
+      "gemini-3.8-flash",
+    ];
     const rawId = modelId.replace(/^(google:|gemini:)/, "").toLowerCase();
     if (rawId.includes("pro")) {
-      candidateModels = ["gemini-3.8-flash", "gemini-3.1-pro-preview", "gemini-3.5-flash"];
+      candidateModels = ["gemini-3.5-flash", "gemini-3.1-pro-preview", "gemini-pro-latest"];
     }
 
     let lastError: Error | null = null;
