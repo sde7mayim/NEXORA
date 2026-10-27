@@ -111,7 +111,7 @@ export default function LandingPage() {
 
                   <div className="flex gap-3">
                     <div className="w-8 h-8 rounded-lg bg-slate-900 border border-white/10 flex items-center justify-center p-1 shadow-md">
-                      <Image src="/logo.png" alt="Nexora" width={24} height={24} className="object-contain" />
+                      <Image src="/nexora-logo.png?v=3" alt="Nexora" width={24} height={24} className="object-contain" unoptimized />
                     </div>
                     <div className="rounded-xl glass-card p-4 text-sm text-zinc-200 max-w-2xl space-y-3 border border-indigo-500/20">
                       <div className="flex items-center gap-2 text-xs text-indigo-400 font-medium">

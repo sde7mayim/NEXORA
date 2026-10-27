@@ -25,14 +25,15 @@ export function NexoraLogo({
 
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
-      <div className="relative shrink-0 flex items-center justify-center">
+      <div className="relative shrink-0 flex items-center justify-center bg-transparent">
         <Image
-          src="/logo.png"
+          src="/nexora-logo.png?v=3"
           alt="Nexora Cloud Logo"
           width={dimensions.width}
           height={dimensions.height}
           className="object-contain drop-shadow-[0_4px_16px_rgba(59,130,246,0.35)]"
           priority
+          unoptimized
         />
       </div>
       {showText && (

@@ -8,11 +8,11 @@ export const metadata: Metadata = {
     "Nexora is a secure, enterprise-grade multi-model AI SaaS platform uniting OpenAI, Anthropic, and intelligent routing into a single workspace.",
   icons: {
     icon: [
-      { url: "/favicon.png", type: "image/png" },
-      { url: "/logo.png", type: "image/png" },
+      { url: "/favicon.png?v=3", type: "image/png" },
+      { url: "/nexora-logo.png?v=3", type: "image/png" },
     ],
-    shortcut: "/favicon.png",
-    apple: "/logo.png",
+    shortcut: "/favicon.png?v=3",
+    apple: "/nexora-logo.png?v=3",
   },
 };
 

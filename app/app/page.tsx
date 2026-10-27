@@ -806,7 +806,7 @@ export default function ChatWorkspacePage() {
             {messages.length === 0 ? (
               <div className="text-center py-24 space-y-3">
                 <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-white/10 mx-auto flex items-center justify-center shadow-xl p-2.5 drop-shadow-[0_4px_16px_rgba(59,130,246,0.35)]">
-                  <Image src="/logo.png" alt="Nexora" width={36} height={36} className="object-contain" priority />
+                  <Image src="/nexora-logo.png?v=3" alt="Nexora" width={36} height={36} className="object-contain" priority unoptimized />
                 </div>
                 <h3 className="text-lg font-bold text-white">Start a New Multi-Model Chat</h3>
                 <p className="text-xs text-zinc-400 max-w-sm mx-auto">
@@ -826,7 +826,7 @@ export default function ChatWorkspacePage() {
                     {msg.role === "user" ? (
                       "U"
                     ) : (
-                      <Image src="/logo.png" alt="Nexora" width={18} height={18} className="object-contain" />
+                      <Image src="/nexora-logo.png?v=3" alt="Nexora" width={18} height={18} className="object-contain" unoptimized />
                     )}
                   </div>
 
