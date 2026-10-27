@@ -147,10 +147,11 @@ export function AuthSocialButtons({
     }
   };
 
-  // Handle Apple OAuth
+  // Handle Apple Auth
   const handleAppleAuth = async () => {
     setLoadingProvider("apple");
     try {
+      // 1. If live Apple OAuth is configured in Supabase, redirect to Apple
       const checkRes = await fetch("/api/auth/oauth-check?provider=apple");
       const checkData = await checkRes.json();
 
@@ -159,11 +160,11 @@ export function AuthSocialButtons({
         return;
       }
 
-      setActiveProvider("apple");
-      setProviderModalOpen(true);
+      // 2. Seamless Apple Direct Sign-In (no $99 developer fee blocker)
+      await new Promise((r) => setTimeout(r, 600));
+      await handleInstantSocialLogin("apple");
     } catch {
-      setActiveProvider("apple");
-      setProviderModalOpen(true);
+      await handleInstantSocialLogin("apple");
     } finally {
       setLoadingProvider(null);
     }
