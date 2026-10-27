@@ -251,40 +251,127 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* ==================================================================== */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Mobile Header Bar */}
-        <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-white/5 bg-slate-950">
-          <Link href="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+        <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-white/5 bg-slate-950/90 backdrop-blur-md z-30 shrink-0">
+          <Link href="/app" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
             <NexoraLogo size="xs" />
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Link
               href="/app"
-              className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-xs font-medium flex items-center gap-1"
+              className="px-2.5 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold flex items-center gap-1 shadow-sm active:scale-95 transition-all"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Chat</span>
+              <span>New</span>
             </Link>
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              className="p-1.5 text-zinc-400 hover:text-white"
+              aria-expanded={mobileOpen}
+              aria-label="Toggle navigation menu"
+              className="p-2 text-zinc-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
             >
               {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </header>
 
+        {/* Accessible Mobile Drawer Overlay */}
         {mobileOpen && (
-          <div className="md:hidden glass-panel border-b border-white/10 p-4 space-y-2 z-50">
-            {navigation.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
-                className="flex items-center gap-2.5 py-2 px-3 rounded-lg text-sm text-zinc-300 hover:text-white"
-              >
-                <item.icon className="w-4 h-4" />
-                <span>{item.name}</span>
-              </Link>
-            ))}
+          <div className="md:hidden fixed inset-0 z-50 flex">
+            {/* Backdrop */}
+            <div
+              onClick={() => setMobileOpen(false)}
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+              aria-hidden="true"
+            />
+
+            {/* Slide-over Drawer Panel */}
+            <div className="relative w-72 max-w-[80vw] bg-slate-950 border-r border-white/10 p-4 flex flex-col justify-between shadow-2xl z-50 overflow-y-auto">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-white/5">
+                  <NexoraLogo size="sm" />
+                  <button
+                    onClick={() => setMobileOpen(false)}
+                    className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-white/5"
+                    aria-label="Close menu"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2 px-1 text-xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="font-semibold text-zinc-300 capitalize">{userPlan} Workspace</span>
+                  {isOwner && (
+                    <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/15 px-1.5 py-0.2 rounded border border-indigo-500/25">
+                      Owner
+                    </span>
+                  )}
+                </div>
+
+                <Link
+                  href="/app"
+                  onClick={() => setMobileOpen(false)}
+                  className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/20"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>New Conversation</span>
+                </Link>
+
+                <nav className="space-y-1 text-sm pt-1">
+                  {navigation.map((item) => {
+                    const active = pathname === item.href;
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        onClick={() => setMobileOpen(false)}
+                        className={`flex items-center justify-between px-3 py-2.5 rounded-xl font-medium transition-colors ${
+                          active
+                            ? "bg-indigo-600/20 text-white font-semibold border border-indigo-500/30"
+                            : "text-zinc-400 hover:text-white hover:bg-white/5"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Icon className="w-4 h-4 shrink-0" />
+                          <span>{item.name}</span>
+                        </div>
+                        {(item as any).badge && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                            {(item as any).badge}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </div>
+
+              {/* Mobile Drawer User Footer */}
+              <div className="pt-4 border-t border-white/5 space-y-3">
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-white/5">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-600/30 border border-indigo-500/35 flex items-center justify-center text-indigo-300 text-xs font-bold shrink-0">
+                      {avatarInitial}
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-semibold text-white truncate">{userName}</span>
+                      <span className="text-[11px] text-zinc-400 truncate">{userEmail}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleSignOut}
+                    title="Sign out"
+                    className="text-zinc-400 hover:text-rose-400 p-1.5 rounded-lg transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="text-[10px] text-zinc-500 text-center font-mono">
+                  {getAppVersionDisplay()}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

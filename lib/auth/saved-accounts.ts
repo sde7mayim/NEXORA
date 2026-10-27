@@ -53,6 +53,7 @@ export class SavedAccountManager {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(account));
         localStorage.setItem(HISTORY_KEY, JSON.stringify(this.memoryHistory));
+        document.cookie = `nexora_remembered_account=${encodeURIComponent(email)}; path=/; max-age=2592000; SameSite=Lax`;
       } catch {}
     }
 
@@ -74,6 +75,7 @@ export class SavedAccountManager {
     if (typeof window !== "undefined") {
       try {
         localStorage.removeItem(STORAGE_KEY);
+        document.cookie = "nexora_remembered_account=; path=/; max-age=0; SameSite=Lax";
       } catch {}
     }
   }

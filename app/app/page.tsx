@@ -32,6 +32,7 @@ import {
   Zap,
   ArrowUpRight,
   Shield,
+  MessageSquare,
 } from "lucide-react";
 import { NEXORA_MODEL_FAMILIES, EXTERNAL_MODELS } from "@/lib/ai/model-registry";
 import { ConversationStore, Conversation, ConversationMessage } from "@/lib/chat/conversation-store";
@@ -170,6 +171,7 @@ export default function ChatWorkspacePage() {
 
   // Drawer / History state
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
   const [searchFilter, setSearchFilter] = useState("");
   const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
   const [editTitleInput, setEditTitleInput] = useState("");
@@ -683,7 +685,10 @@ export default function ChatWorkspacePage() {
     return (
       <div
         key={conv.id}
-        onClick={() => selectConversation(conv)}
+        onClick={() => {
+          selectConversation(conv);
+          setMobileHistoryOpen(false);
+        }}
         className={`group flex items-center justify-between px-3 py-2.5 rounded-xl text-sm cursor-pointer transition-colors ${
           isActive
             ? "bg-indigo-600/20 text-white border border-indigo-500/30 font-semibold"
@@ -743,119 +748,142 @@ export default function ChatWorkspacePage() {
     );
   };
 
+  const renderHistoryDrawerContent = (onClose: () => void) => (
+    <div className="space-y-3">
+      {/* Drawer Header with + New Chat Action & Collapse Button */}
+      <div className="flex items-center justify-between pb-2.5 border-b border-white/5">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
+            Chats
+          </span>
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/5 text-zinc-400 border border-white/5">
+            {conversations.length}
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => {
+              handleNewConversation();
+              setMobileHistoryOpen(false);
+            }}
+            className="p-1.5 text-zinc-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors flex items-center gap-1 text-xs font-medium"
+            title="Start new conversation"
+          >
+            <Plus className="w-4 h-4 text-indigo-400" />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
+            title="Collapse history drawer"
+          >
+            <PanelLeftClose className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Search Filter */}
+      <div className="relative">
+        <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+        <input
+          type="text"
+          value={searchFilter}
+          onChange={(e) => setSearchFilter(e.target.value)}
+          placeholder="Search chats..."
+          className="w-full pl-8 pr-2.5 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-white text-xs focus:outline-none focus:border-indigo-500"
+        />
+      </div>
+
+      {/* Date-Grouped Conversations List */}
+      <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-230px)] pr-1">
+        {conversationGroups.pinned.length > 0 && (
+          <div className="space-y-1">
+            <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1">
+              <Pin className="w-3 h-3 fill-indigo-400/20" />
+              <span>Pinned</span>
+            </div>
+            {conversationGroups.pinned.map(renderConversationItem)}
+          </div>
+        )}
+
+        {conversationGroups.today.length > 0 && (
+          <div className="space-y-1">
+            <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+              Today
+            </div>
+            {conversationGroups.today.map(renderConversationItem)}
+          </div>
+        )}
+
+        {conversationGroups.yesterday.length > 0 && (
+          <div className="space-y-1">
+            <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+              Yesterday
+            </div>
+            {conversationGroups.yesterday.map(renderConversationItem)}
+          </div>
+        )}
+
+        {conversationGroups.previous7Days.length > 0 && (
+          <div className="space-y-1">
+            <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+              Previous 7 Days
+            </div>
+            {conversationGroups.previous7Days.map(renderConversationItem)}
+          </div>
+        )}
+
+        {conversationGroups.older.length > 0 && (
+          <div className="space-y-1">
+            <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+              Older
+            </div>
+            {conversationGroups.older.map(renderConversationItem)}
+          </div>
+        )}
+
+        {filteredConversations.length === 0 && (
+          <div className="text-center py-6 text-zinc-500 text-xs">
+            No conversations found
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex h-full bg-slate-950 relative overflow-hidden">
       {/* ==================================================================== */}
-      {/* CONVERSATION HISTORY DRAWER (Collapsible)                            */}
+      {/* DESKTOP CONVERSATION HISTORY DRAWER                                  */}
       {/* ==================================================================== */}
       {sidebarOpen ? (
-        <aside className="w-64 border-r border-white/5 bg-slate-950/90 flex flex-col justify-between p-3 shrink-0">
-          <div className="space-y-3">
-            {/* Drawer Header with + New Chat Action & Collapse Button */}
-            <div className="flex items-center justify-between pb-2.5 border-b border-white/5">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
-                  Chats
-                </span>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/5 text-zinc-400 border border-white/5">
-                  {conversations.length}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={handleNewConversation}
-                  className="p-1.5 text-zinc-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors flex items-center gap-1 text-xs font-medium"
-                  title="Start new conversation"
-                >
-                  <Plus className="w-4 h-4 text-indigo-400" />
-                </button>
-                <button
-                  onClick={() => setSidebarOpen(false)}
-                  className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
-                  title="Collapse history drawer"
-                >
-                  <PanelLeftClose className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Search Filter */}
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchFilter}
-                onChange={(e) => setSearchFilter(e.target.value)}
-                placeholder="Search chats..."
-                className="w-full pl-8 pr-2.5 py-1.5 rounded-lg bg-slate-900 border border-white/10 text-white text-xs focus:outline-none focus:border-indigo-500"
-              />
-            </div>
-
-            {/* Date-Grouped Conversations List */}
-            <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-230px)] pr-1">
-              {conversationGroups.pinned.length > 0 && (
-                <div className="space-y-1">
-                  <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1">
-                    <Pin className="w-3 h-3 fill-indigo-400/20" />
-                    <span>Pinned</span>
-                  </div>
-                  {conversationGroups.pinned.map(renderConversationItem)}
-                </div>
-              )}
-
-              {conversationGroups.today.length > 0 && (
-                <div className="space-y-1">
-                  <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                    Today
-                  </div>
-                  {conversationGroups.today.map(renderConversationItem)}
-                </div>
-              )}
-
-              {conversationGroups.yesterday.length > 0 && (
-                <div className="space-y-1">
-                  <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                    Yesterday
-                  </div>
-                  {conversationGroups.yesterday.map(renderConversationItem)}
-                </div>
-              )}
-
-              {conversationGroups.previous7Days.length > 0 && (
-                <div className="space-y-1">
-                  <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                    Previous 7 Days
-                  </div>
-                  {conversationGroups.previous7Days.map(renderConversationItem)}
-                </div>
-              )}
-
-              {conversationGroups.older.length > 0 && (
-                <div className="space-y-1">
-                  <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                    Older
-                  </div>
-                  {conversationGroups.older.map(renderConversationItem)}
-                </div>
-              )}
-
-              {filteredConversations.length === 0 && (
-                <div className="text-center py-6 text-zinc-500 text-xs">
-                  No conversations found
-                </div>
-              )}
-            </div>
-          </div>
+        <aside className="hidden md:flex w-64 border-r border-white/5 bg-slate-950/90 flex-col justify-between p-3 shrink-0">
+          {renderHistoryDrawerContent(() => setSidebarOpen(false))}
         </aside>
       ) : (
-        /* Collapsed Open Button */
+        /* Desktop Collapsed Open Button */
         <button
           onClick={() => setSidebarOpen(true)}
-          className="p-2 m-2 h-fit text-zinc-400 hover:text-white glass-card rounded-xl border border-white/5"
+          className="hidden md:block p-2 m-2 h-fit text-zinc-400 hover:text-white glass-card rounded-xl border border-white/5"
           title="Open conversation history"
         >
           <PanelLeftOpen className="w-4 h-4" />
         </button>
+      )}
+
+      {/* ==================================================================== */}
+      {/* MOBILE CONVERSATION HISTORY OVERLAY DRAWER                           */}
+      {/* ==================================================================== */}
+      {mobileHistoryOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          <div
+            onClick={() => setMobileHistoryOpen(false)}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+            aria-hidden="true"
+          />
+          <aside className="relative w-72 max-w-[85vw] bg-slate-950 border-r border-white/10 p-3 flex flex-col justify-between z-50 shadow-2xl overflow-y-auto">
+            {renderHistoryDrawerContent(() => setMobileHistoryOpen(false))}
+          </aside>
+        </div>
       )}
 
       {/* ==================================================================== */}
@@ -864,8 +892,18 @@ export default function ChatWorkspacePage() {
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Top Controls Bar */}
         <div className="px-4 py-2.5 border-b border-white/5 bg-slate-900/40 flex items-center justify-between z-20">
-          {/* Model Selector & Inspector */}
           <div className="flex items-center gap-2">
+            {/* Mobile History Drawer Button */}
+            <button
+              onClick={() => setMobileHistoryOpen(true)}
+              className="md:hidden flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900 border border-white/10 text-xs text-zinc-300 hover:text-white active:scale-95 transition-all"
+              title="View conversations"
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Chats</span>
+            </button>
+
+            {/* Model Selector & Inspector */}
             <div className="relative">
               <button
                 onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
