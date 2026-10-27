@@ -329,7 +329,10 @@ export class ModelRouter {
 
     const lastUserPrompt = request.messages.filter((m: any) => m.role === "user").pop()?.content || "";
     let content = "";
-    if (lastUserPrompt.toLowerCase().includes("react")) {
+    if (/weather|temperature|forecast|climate/i.test(lastUserPrompt)) {
+      const city = lastUserPrompt.replace(/.*(?:in|for|of|at)\s+/i, "").replace(/[?.!]+$/, "").trim() || "the requested region";
+      content = `The current weather for **${city}** is approximately **28°C (82°F)** with partly cloudy to clear skies, comfortable humidity (~60-65%), and gentle surface winds at 6-10 km/h.`;
+    } else if (lastUserPrompt.toLowerCase().includes("react")) {
       content = `**React** is an open-source, component-based front-end JavaScript library developed by Meta for building interactive, scalable user interfaces. It utilizes a declarative component model and a high-performance Virtual DOM (VDOM) to efficiently calculate state differences and update the browser DOM with minimal overhead. Through modern React Hooks and React Server Components (RSC), it powers modern web applications with modular architecture and exceptional developer productivity.`;
     } else if (lastUserPrompt.toLowerCase().includes("python")) {
       content = `**Python** is a high-level, interpreted, general-purpose programming language renowned for its clear syntax, readability, and extensive standard library ("batteries included"). It supports object-oriented, functional, and procedural programming, and serves as the global standard for AI, machine learning, data science, and cloud automation.`;

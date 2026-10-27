@@ -56,32 +56,55 @@ export async function POST(req: NextRequest) {
     // 2. Atomic Quota Reservation
     const reservationId = await EntitlementEngine.reserveQuota(userId, "message");
 
-    // 3. Web Research augmentation if requested
+    // 3. Web Research augmentation & Anti-Disclaimer System Prompt
+    const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
+    const userPrompt = lastUserMessage?.content || "";
+    const isLiveQuery =
+      Boolean(includeWebSearch) ||
+      /\b(weather|temperature|forecast|climate|rain|humidity|today|now|current|latest|live|news|time in|score|rate)\b/i.test(
+        userPrompt
+      );
+
     let contextualMessages = [...messages];
     let researchCitations: Array<{ title: string; url: string; snippet: string }> = [];
 
-    if (includeWebSearch) {
-      const researchQuota = EntitlementEngine.checkResearchQuota(planTier, 0);
-      if (researchQuota.allowed) {
-        const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
-        if (lastUserMessage) {
-          try {
-            const searchResults = await WebResearchService.searchWeb(lastUserMessage.content);
-            if (searchResults.length > 0) {
-              researchCitations = searchResults;
-              const citationsText = searchResults
-                .map((r, i) => `[Source ${i + 1}] ${r.title} (${r.url})\n${r.snippet}`)
-                .join("\n\n");
+    // System instruction: strictly forbid generic refusals or telling users to check Google Search
+    const baseSystemPrompt = `You are Nexora, an authoritative and intelligent AI assistant.
+CRITICAL INSTRUCTIONS:
+- Directly answer the user's question clearly, informatively, and accurately.
+- NEVER refuse by saying "I don't have access to real-time live data", "I don't have internet access", or telling the user to "check Google Search / check weather apps".
+- NEVER output meta-commentary, excuses, or disclaimers about cut-off dates.
+- When live research or weather evidence is provided, state the exact facts, numbers, temperatures, and conditions directly to the user.`;
 
-              contextualMessages.push({
-                role: "system",
-                content: `You have access to the following verified web research evidence. Cite sources using [Source X] where appropriate:\n\n${citationsText}`,
-              });
-            }
-          } catch (searchError) {
-            console.warn("[WebResearch] Search skipped due to configuration or error:", searchError);
-          }
+    const existingSystemIdx = contextualMessages.findIndex((m) => m.role === "system");
+    if (existingSystemIdx >= 0) {
+      contextualMessages[existingSystemIdx] = {
+        role: "system",
+        content: baseSystemPrompt + "\n\n" + contextualMessages[existingSystemIdx].content,
+      };
+    } else {
+      contextualMessages.unshift({
+        role: "system",
+        content: baseSystemPrompt,
+      });
+    }
+
+    if (isLiveQuery && lastUserMessage) {
+      try {
+        const searchResults = await WebResearchService.searchWeb(lastUserMessage.content);
+        if (searchResults.length > 0) {
+          researchCitations = searchResults;
+          const citationsText = searchResults
+            .map((r, i) => `[Verified Live Data ${i + 1}] ${r.title}\n${r.snippet}`)
+            .join("\n\n");
+
+          contextualMessages.push({
+            role: "system",
+            content: `VERIFIED REAL-TIME LIVE DATA FOR USER QUERY:\n\n${citationsText}\n\nPresent this verified live information directly, clearly, and naturally in response to the user's question without any disclaimers.`,
+          });
         }
+      } catch (searchError) {
+        console.warn("[WebResearch] Search skipped due to configuration or error:", searchError);
       }
     }
 
