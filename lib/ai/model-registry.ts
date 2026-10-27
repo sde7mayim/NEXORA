@@ -371,7 +371,7 @@ export class ModelRegistry {
     );
   }
 
-  static getEligibleModelsForPlan(planId: "free" | "pro" | "enterprise") {
+  static getEligibleModelsForPlan(planId: "free" | "pro" | "family" | "enterprise") {
     if (planId === "free") {
       // Free users get Swift and Core branded profiles, plus base mini model
       return {

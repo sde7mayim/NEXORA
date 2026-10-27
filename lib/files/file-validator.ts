@@ -7,7 +7,15 @@ export interface FileValidationResult {
 }
 
 export class FileProcessingService {
-  private static ALLOWED_EXTENSIONS = [".pdf", ".txt", ".md", ".csv", ".docx"];
+  private static ALLOWED_EXTENSIONS = [
+    ".pdf", ".docx", ".doc", ".txt", ".md", ".csv", ".xlsx", ".xls",
+    ".json", ".xml", ".yaml", ".yml",
+    ".ts", ".tsx", ".js", ".jsx", ".py", ".java", ".c", ".cpp", ".cs", ".go", ".rs", ".sql", ".html", ".css",
+    ".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg",
+    ".mp3", ".wav", ".m4a", ".ogg",
+    ".mp4", ".webm",
+    ".zip", ".tar", ".gz"
+  ];
 
   /**
    * Validates file size against user plan entitlements.
@@ -36,7 +44,7 @@ export class FileProcessingService {
     if (!hasAllowedExt) {
       return {
         valid: false,
-        error: `File extension not supported. Allowed formats: PDF, TXT, MD, CSV, DOCX.`,
+        error: `File extension not supported. Allowed formats: PDF, DOCX, CSV, spreadsheets, code, JSON, media, and archives.`,
       };
     }
 

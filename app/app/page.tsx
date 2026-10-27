@@ -39,39 +39,68 @@ import { SavedAccountManager } from "@/lib/auth/saved-accounts";
 
 const AVAILABLE_ACTION_MODELS = [
   {
+    id: "nexora-swift",
+    name: "Nexora Swift",
+    badge: "Ultra-Fast",
+    desc: "Sub-second responsiveness for quick everyday assistance, summaries & drafting.",
+    color: "text-purple-400 bg-purple-500/10 border-purple-500/30",
+    version: "1.0",
+  },
+  {
     id: "nexora-core",
     name: "Nexora Core",
-    badge: "Balanced",
-    desc: "Flagship default intelligence for high-precision reasoning.",
+    badge: "Balanced Flagship",
+    desc: "Balanced general-purpose intelligence, reasoning, coding, & document QA.",
     color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/30",
+    version: "1.0",
+  },
+  {
+    id: "nexora-reason",
+    name: "Nexora Reason",
+    badge: "Deep Reasoning",
+    desc: "Deep multi-step analytical intelligence, architectural planning, & code synthesis.",
+    color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+    version: "1.0",
+  },
+  {
+    id: "nexora-vision",
+    name: "Nexora Vision",
+    badge: "Multimodal Acuity",
+    desc: "High-acuity visual reasoning across diagrams, UI mockups, documents, & images.",
+    color: "text-sky-400 bg-sky-500/10 border-sky-500/30",
+    version: "1.0",
   },
   {
     id: "gemini:gemini-1.5-flash",
     name: "Gemini 1.5 Flash",
     badge: "Google Flash",
-    desc: "Ultra-fast response latency with massive 1M context.",
-    color: "text-sky-400 bg-sky-500/10 border-sky-500/30",
+    desc: "Ultra-fast response latency with massive 1M context capacity.",
+    color: "text-cyan-400 bg-cyan-500/10 border-cyan-500/30",
+    version: "1.5",
   },
   {
     id: "openai:gpt-4o-mini",
     name: "GPT-4o Mini",
     badge: "OpenAI",
-    desc: "Fast, everyday conversational intelligence.",
+    desc: "Fast, everyday conversational intelligence with vision.",
     color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+    version: "Omni-Mini",
   },
   {
     id: "anthropic:claude-3-5-sonnet",
     name: "Claude 3.5 Sonnet",
     badge: "Anthropic",
-    desc: "Sophisticated engineering reasoning and coding.",
-    color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+    desc: "Sophisticated engineering reasoning and nuanced writing.",
+    color: "text-orange-400 bg-orange-500/10 border-orange-500/30",
+    version: "3.5",
   },
   {
-    id: "nexora-swift",
-    name: "Nexora Swift",
-    badge: "Fast",
-    desc: "Sub-second responsiveness for quick everyday questions.",
-    color: "text-purple-400 bg-purple-500/10 border-purple-500/30",
+    id: "openai:gpt-4o",
+    name: "GPT-4o (Omni)",
+    badge: "OpenAI Flagship",
+    desc: "Flagship multimodal intelligence for high-complexity analysis.",
+    color: "text-emerald-300 bg-emerald-500/10 border-emerald-500/30",
+    version: "Omni",
   },
 ];
 
@@ -94,6 +123,8 @@ export default function ChatWorkspacePage() {
   const [openMoreMenuMsgId, setOpenMoreMenuMsgId] = useState<string | null>(null);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
 
+  const [isDragging, setIsDragging] = useState(false);
+
   // Drawer / History state
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [searchFilter, setSearchFilter] = useState("");
@@ -104,6 +135,45 @@ export default function ChatWorkspacePage() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const groupConversationsByDate = (convList: Conversation[]) => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfYesterday = startOfToday - 86400000;
+    const startOfLast7Days = startOfToday - 6 * 86400000;
+
+    const groups: {
+      pinned: Conversation[];
+      today: Conversation[];
+      yesterday: Conversation[];
+      previous7Days: Conversation[];
+      older: Conversation[];
+    } = {
+      pinned: [],
+      today: [],
+      yesterday: [],
+      previous7Days: [],
+      older: [],
+    };
+
+    for (const c of convList) {
+      if (c.isPinned) {
+        groups.pinned.push(c);
+        continue;
+      }
+      const time = new Date(c.updatedAt || c.createdAt).getTime();
+      if (time >= startOfToday) {
+        groups.today.push(c);
+      } else if (time >= startOfYesterday) {
+        groups.yesterday.push(c);
+      } else if (time >= startOfLast7Days) {
+        groups.previous7Days.push(c);
+      } else {
+        groups.older.push(c);
+      }
+    }
+    return groups;
+  };
 
   // Load conversations isolated strictly to active user account
   useEffect(() => {
@@ -549,16 +619,82 @@ export default function ChatWorkspacePage() {
     handleSendMessage(promptText);
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const selected = Array.from(e.target.files);
-      setAttachments((prev) => [...prev, ...selected]);
-    }
+  const handleDropFiles = (files: FileList | File[]) => {
+    const selected = Array.from(files);
+    setAttachments((prev) => [...prev, ...selected]);
   };
 
   const filteredConversations = conversations.filter((c) =>
     c.title.toLowerCase().includes(searchFilter.toLowerCase())
   );
+  const conversationGroups = groupConversationsByDate(filteredConversations);
+
+  const renderConversationItem = (conv: Conversation) => {
+    const isActive = conv.id === activeConvId;
+    const isEditing = editingTitleId === conv.id;
+
+    return (
+      <div
+        key={conv.id}
+        onClick={() => selectConversation(conv)}
+        className={`group flex items-center justify-between px-2.5 py-2 rounded-xl text-xs cursor-pointer transition-colors ${
+          isActive
+            ? "bg-indigo-600/20 text-white border border-indigo-500/30 font-medium"
+            : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+        }`}
+      >
+        <div className="flex items-center gap-2 truncate flex-1">
+          {conv.isPinned && <Pin className="w-3 h-3 text-indigo-400 shrink-0 fill-indigo-400/20" />}
+          {isEditing ? (
+            <input
+              type="text"
+              autoFocus
+              value={editTitleInput}
+              onChange={(e) => setEditTitleInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleRename(conv.id);
+                if (e.key === "Escape") setEditingTitleId(null);
+              }}
+              onBlur={() => handleRename(conv.id)}
+              className="bg-slate-900 px-1 py-0.5 rounded text-white text-xs w-full focus:outline-none border border-indigo-500"
+            />
+          ) : (
+            <span className="truncate">{conv.title}</span>
+          )}
+        </div>
+
+        {!isEditing && (
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingTitleId(conv.id);
+                setEditTitleInput(conv.title);
+              }}
+              className="p-1 hover:text-white"
+              title="Rename"
+            >
+              <Edit2 className="w-3 h-3" />
+            </button>
+            <button
+              onClick={(e) => handleTogglePin(conv.id, e)}
+              className="p-1 hover:text-white"
+              title={conv.isPinned ? "Unpin" : "Pin"}
+            >
+              <Pin className="w-3 h-3" />
+            </button>
+            <button
+              onClick={(e) => handleDeleteConversation(conv.id, e)}
+              className="p-1 hover:text-rose-400"
+              title="Delete"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="flex h-full bg-slate-950 relative overflow-hidden">
@@ -603,74 +739,59 @@ export default function ChatWorkspacePage() {
               />
             </div>
 
-            {/* Conversations List */}
-            <div className="space-y-1 overflow-y-auto max-h-[calc(100vh-230px)] pr-1">
-              {filteredConversations.map((conv) => {
-                const isActive = conv.id === activeConvId;
-                const isEditing = editingTitleId === conv.id;
-
-                return (
-                  <div
-                    key={conv.id}
-                    onClick={() => selectConversation(conv)}
-                    className={`group flex items-center justify-between px-2.5 py-2 rounded-xl text-xs cursor-pointer transition-colors ${
-                      isActive
-                        ? "bg-indigo-600/20 text-white border border-indigo-500/30 font-medium"
-                        : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 truncate flex-1">
-                      {conv.isPinned && <Pin className="w-3 h-3 text-indigo-400 shrink-0 fill-indigo-400/20" />}
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          autoFocus
-                          value={editTitleInput}
-                          onChange={(e) => setEditTitleInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleRename(conv.id);
-                            if (e.key === "Escape") setEditingTitleId(null);
-                          }}
-                          onBlur={() => handleRename(conv.id)}
-                          className="bg-slate-900 px-1 py-0.5 rounded text-white text-xs w-full focus:outline-none border border-indigo-500"
-                        />
-                      ) : (
-                        <span className="truncate">{conv.title}</span>
-                      )}
-                    </div>
-
-                    {!isEditing && (
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingTitleId(conv.id);
-                            setEditTitleInput(conv.title);
-                          }}
-                          className="p-1 hover:text-white"
-                          title="Rename"
-                        >
-                          <Edit2 className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={(e) => handleTogglePin(conv.id, e)}
-                          className="p-1 hover:text-white"
-                          title={conv.isPinned ? "Unpin" : "Pin"}
-                        >
-                          <Pin className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={(e) => handleDeleteConversation(conv.id, e)}
-                          className="p-1 hover:text-rose-400"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
+            {/* Date-Grouped Conversations List */}
+            <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-230px)] pr-1">
+              {conversationGroups.pinned.length > 0 && (
+                <div className="space-y-1">
+                  <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1">
+                    <Pin className="w-3 h-3 fill-indigo-400/20" />
+                    <span>Pinned</span>
                   </div>
-                );
-              })}
+                  {conversationGroups.pinned.map(renderConversationItem)}
+                </div>
+              )}
+
+              {conversationGroups.today.length > 0 && (
+                <div className="space-y-1">
+                  <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    Today
+                  </div>
+                  {conversationGroups.today.map(renderConversationItem)}
+                </div>
+              )}
+
+              {conversationGroups.yesterday.length > 0 && (
+                <div className="space-y-1">
+                  <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    Yesterday
+                  </div>
+                  {conversationGroups.yesterday.map(renderConversationItem)}
+                </div>
+              )}
+
+              {conversationGroups.previous7Days.length > 0 && (
+                <div className="space-y-1">
+                  <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    Previous 7 Days
+                  </div>
+                  {conversationGroups.previous7Days.map(renderConversationItem)}
+                </div>
+              )}
+
+              {conversationGroups.older.length > 0 && (
+                <div className="space-y-1">
+                  <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    Older
+                  </div>
+                  {conversationGroups.older.map(renderConversationItem)}
+                </div>
+              )}
+
+              {filteredConversations.length === 0 && (
+                <div className="text-center py-6 text-zinc-500 text-xs">
+                  No conversations found
+                </div>
+              )}
             </div>
           </div>
         </aside>
@@ -1090,20 +1211,40 @@ export default function ChatWorkspacePage() {
               </div>
             )}
 
-            {/* Input Box */}
-            <div className="relative rounded-2xl glass-card border border-white/10 p-2 flex items-end gap-2 focus-within:border-indigo-500/50 transition-colors">
+            {/* Input Box with Drag & Drop */}
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDragging(false);
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                  handleDropFiles(e.dataTransfer.files);
+                }
+              }}
+              className={`relative rounded-2xl glass-card border transition-all p-2 flex items-end gap-2 ${
+                isDragging
+                  ? "border-indigo-500 bg-indigo-500/10 ring-2 ring-indigo-500/30"
+                  : "border-white/10 focus-within:border-indigo-500/50"
+              }`}
+            >
               <input
                 type="file"
                 ref={fileInputRef}
-                onChange={handleFileSelect}
+                onChange={(e) => {
+                  if (e.target.files) handleDropFiles(e.target.files);
+                }}
                 multiple
-                accept=".pdf,.txt,.md,.csv,.docx"
+                accept=".pdf,.docx,.doc,.txt,.md,.csv,.xlsx,.xls,.json,.xml,.yaml,.yml,.ts,.tsx,.js,.jsx,.py,.java,.c,.cpp,.cs,.go,.rs,.sql,.html,.css,.png,.jpg,.jpeg,.webp,.gif,.svg,.mp3,.wav,.m4a,.ogg,.mp4,.webm,.zip,.tar,.gz"
                 className="hidden"
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="p-2 text-zinc-400 hover:text-white rounded-xl hover:bg-white/5 transition-colors"
-                title="Attach document (PDF, DOCX, CSV, TXT, MD)"
+                title="Attach universal file (Documents, Spreadsheets, Code, Media, Archives)"
               >
                 <Paperclip className="w-4 h-4" />
               </button>

@@ -27,7 +27,7 @@ export class ModelRouter {
    */
   static resolveRoutes(
     selectionId: string,
-    userPlan: "free" | "pro" | "enterprise",
+    userPlan: "free" | "pro" | "family" | "enterprise",
     orgId?: string
   ): ResolvedRouteTarget[] {
     // 0. Enforce workspace governance policies and spending caps if in workspace context
