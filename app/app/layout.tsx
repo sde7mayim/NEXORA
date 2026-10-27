@@ -87,6 +87,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const handleSignOut = async () => {
     try {
+      SavedAccountManager.clearRememberedAccount();
       const supabase = createClient();
       await supabase.auth.signOut().catch(() => {});
     } catch {}

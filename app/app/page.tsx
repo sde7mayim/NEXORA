@@ -33,6 +33,8 @@ import { NEXORA_MODEL_FAMILIES, EXTERNAL_MODELS } from "@/lib/ai/model-registry"
 import { ConversationStore, Conversation, ConversationMessage } from "@/lib/chat/conversation-store";
 import { ModelDetailsModal } from "@/components/model-details-modal";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { createClient } from "@/lib/supabase/client";
+import { SavedAccountManager } from "@/lib/auth/saved-accounts";
 
 const AVAILABLE_ACTION_MODELS = [
   {
@@ -76,6 +78,7 @@ export default function ChatWorkspacePage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConvId, setActiveConvId] = useState<string>("");
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
   const [input, setInput] = useState("");
   const [selectedModel, setSelectedModel] = useState("nexora-core");
   const [includeWebSearch, setIncludeWebSearch] = useState(false);
@@ -101,14 +104,69 @@ export default function ChatWorkspacePage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load conversations on mount
+  // Load conversations isolated strictly to active user account
   useEffect(() => {
-    const list = ConversationStore.getConversations();
-    setConversations(list);
-    if (list.length > 0) {
-      setActiveConvId(list[0].id);
-      setMessages(list[0].messages);
-      setSelectedModel(list[0].modelSelected || "nexora-core");
+    let isMounted = true;
+
+    async function syncUserConversations() {
+      let activeEmail = "guest";
+      const remembered = SavedAccountManager.getRememberedAccount();
+      if (remembered?.email) {
+        activeEmail = remembered.email.toLowerCase().trim();
+      }
+      try {
+        const supabase = createClient();
+        const { data } = await supabase.auth.getUser();
+        if (data.user?.email) {
+          activeEmail = data.user.email.toLowerCase().trim();
+        }
+      } catch {}
+
+      if (!isMounted) return;
+      setCurrentUserEmail(activeEmail);
+      const list = ConversationStore.getConversations(activeEmail);
+      setConversations(list);
+      if (list.length > 0) {
+        setActiveConvId(list[0].id);
+        setMessages(list[0].messages);
+        setSelectedModel(list[0].modelSelected || "nexora-core");
+      } else {
+        setActiveConvId("");
+        setMessages([]);
+      }
+    }
+
+    syncUserConversations();
+
+    try {
+      const supabase = createClient();
+      const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+        const newEmail =
+          session?.user?.email?.toLowerCase().trim() ||
+          SavedAccountManager.getRememberedAccount()?.email ||
+          "guest";
+        if (isMounted) {
+          setCurrentUserEmail(newEmail);
+          const list = ConversationStore.getConversations(newEmail);
+          setConversations(list);
+          if (list.length > 0) {
+            setActiveConvId(list[0].id);
+            setMessages(list[0].messages);
+            setSelectedModel(list[0].modelSelected || "nexora-core");
+          } else {
+            setActiveConvId("");
+            setMessages([]);
+          }
+        }
+      });
+      return () => {
+        isMounted = false;
+        authListener.subscription.unsubscribe();
+      };
+    } catch {
+      return () => {
+        isMounted = false;
+      };
     }
   }, []);
 
@@ -142,7 +200,7 @@ export default function ChatWorkspacePage() {
 
   const handleNewConversation = () => {
     if (isStreaming) return;
-    const newConv = ConversationStore.createConversation("New Conversation", selectedModel);
+    const newConv = ConversationStore.createConversation("New Conversation", selectedModel, currentUserEmail);
     setConversations([newConv, ...conversations]);
     setActiveConvId(newConv.id);
     setMessages([]);
@@ -154,15 +212,15 @@ export default function ChatWorkspacePage() {
       setEditingTitleId(null);
       return;
     }
-    ConversationStore.renameConversation(id, editTitleInput.trim());
-    setConversations(ConversationStore.getConversations());
+    ConversationStore.renameConversation(id, editTitleInput.trim(), currentUserEmail);
+    setConversations(ConversationStore.getConversations(currentUserEmail));
     setEditingTitleId(null);
   };
 
   const handleDeleteConversation = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    ConversationStore.deleteConversation(id);
-    const updated = ConversationStore.getConversations();
+    ConversationStore.deleteConversation(id, currentUserEmail);
+    const updated = ConversationStore.getConversations(currentUserEmail);
     setConversations(updated);
     if (activeConvId === id) {
       if (updated.length > 0) {
@@ -175,8 +233,8 @@ export default function ChatWorkspacePage() {
 
   const handleTogglePin = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    ConversationStore.togglePin(id);
-    setConversations(ConversationStore.getConversations());
+    ConversationStore.togglePin(id, currentUserEmail);
+    setConversations(ConversationStore.getConversations(currentUserEmail));
   };
 
   const handleSendMessage = async (retryContent?: string) => {
@@ -209,8 +267,8 @@ export default function ChatWorkspacePage() {
     setIsStreaming(true);
 
     // Persist user message to store
-    ConversationStore.saveMessage(activeConvId, userMessage);
-    setConversations(ConversationStore.getConversations());
+    ConversationStore.saveMessage(activeConvId, userMessage, currentUserEmail);
+    setConversations(ConversationStore.getConversations(currentUserEmail));
 
     const assistantMsgId = `msg_ast_${Date.now()}`;
     const initialAssistantMessage: ConversationMessage = {
@@ -236,6 +294,7 @@ export default function ChatWorkspacePage() {
           messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
           includeWebSearch,
           planTier: "pro",
+          userId: currentUserEmail || "usr_anonymous",
         }),
       });
 
@@ -295,7 +354,7 @@ export default function ChatWorkspacePage() {
               );
 
               // Persist incremental progress
-              ConversationStore.saveMessage(activeConvId, updatedAssistantMsg);
+              ConversationStore.saveMessage(activeConvId, updatedAssistantMsg, currentUserEmail);
             } catch {
               // Ignore partial JSON
             }
@@ -316,12 +375,12 @@ export default function ChatWorkspacePage() {
         setMessages((prev) =>
           prev.map((msg) => (msg.id === assistantMsgId ? errorAssistantMsg : msg))
         );
-        ConversationStore.saveMessage(activeConvId, errorAssistantMsg);
+        ConversationStore.saveMessage(activeConvId, errorAssistantMsg, currentUserEmail);
       }
     } finally {
       setIsStreaming(false);
       abortControllerRef.current = null;
-      setConversations(ConversationStore.getConversations());
+      setConversations(ConversationStore.getConversations(currentUserEmail));
     }
   };
 
@@ -379,6 +438,7 @@ export default function ChatWorkspacePage() {
           messages: previousMessages.map((m) => ({ role: m.role, content: m.content })),
           includeWebSearch,
           planTier: "pro",
+          userId: currentUserEmail || "usr_anonymous",
         }),
       });
 
@@ -424,7 +484,7 @@ export default function ChatWorkspacePage() {
                 prev.map((msg) => (msg.id === assistantMsgId ? updatedAssistantMsg : msg))
               );
 
-              ConversationStore.saveMessage(activeConvId, updatedAssistantMsg);
+              ConversationStore.saveMessage(activeConvId, updatedAssistantMsg, currentUserEmail);
             } catch {}
           }
         }
@@ -442,12 +502,12 @@ export default function ChatWorkspacePage() {
         setMessages((prev) =>
           prev.map((msg) => (msg.id === assistantMsgId ? errorAssistantMsg : msg))
         );
-        ConversationStore.saveMessage(activeConvId, errorAssistantMsg);
+        ConversationStore.saveMessage(activeConvId, errorAssistantMsg, currentUserEmail);
       }
     } finally {
       setIsStreaming(false);
       abortControllerRef.current = null;
-      setConversations(ConversationStore.getConversations());
+      setConversations(ConversationStore.getConversations(currentUserEmail));
     }
   };
 
