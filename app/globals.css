@@ -31,6 +31,8 @@ body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   overflow-x: hidden;
+  font-size: 1.0625rem; /* 17px base for elevated product-wide readability */
+  line-height: 1.6;
 }
 
 /* Glassmorphism utility classes */

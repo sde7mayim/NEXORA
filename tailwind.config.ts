@@ -47,6 +47,20 @@ const config: Config = {
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
       },
+      fontSize: {
+        "display-hero": ["clamp(2.25rem, 5vw, 3rem)", { lineHeight: "1.15", letterSpacing: "-0.03em" }],
+        "heading-1": ["clamp(1.875rem, 4vw, 2.375rem)", { lineHeight: "1.2", letterSpacing: "-0.025em" }],
+        "heading-2": ["1.625rem", { lineHeight: "1.3", letterSpacing: "-0.02em" }], // 26px
+        "heading-3": ["1.375rem", { lineHeight: "1.35", letterSpacing: "-0.01em" }], // 22px
+        "chat-body": ["1.09375rem", { lineHeight: "1.68" }], // 17.5px
+        "body-lg": ["1.125rem", { lineHeight: "1.6" }], // 18px
+        "body-md": ["1.0625rem", { lineHeight: "1.6" }], // 17px
+        "body-standard": ["1rem", { lineHeight: "1.55" }], // 16px
+        "ui-nav": ["0.96875rem", { lineHeight: "1.4" }], // 15.5px
+        "ui-input": ["1.03125rem", { lineHeight: "1.45" }], // 16.5px
+        "ui-caption": ["0.90625rem", { lineHeight: "1.45" }], // 14.5px
+        "ui-meta": ["0.84375rem", { lineHeight: "1.4" }], // 13.5px
+      },
       keyframes: {
         shimmer: {
           "0%": { backgroundPosition: "-200% 0" },

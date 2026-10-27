@@ -689,7 +689,7 @@ export default function ChatWorkspacePage() {
           selectConversation(conv);
           setMobileHistoryOpen(false);
         }}
-        className={`group flex items-center justify-between px-3 py-2.5 rounded-xl text-sm cursor-pointer transition-colors ${
+        className={`group flex items-center justify-between px-3.5 py-3 rounded-2xl text-[15px] cursor-pointer transition-colors ${
           isActive
             ? "bg-indigo-600/20 text-white border border-indigo-500/30 font-semibold"
             : "text-zinc-300 hover:bg-white/5 hover:text-white"
@@ -708,7 +708,7 @@ export default function ChatWorkspacePage() {
                 if (e.key === "Escape") setEditingTitleId(null);
               }}
               onBlur={() => handleRename(conv.id)}
-              className="bg-slate-900 px-2 py-1 rounded text-white text-sm w-full focus:outline-none border border-indigo-500"
+              className="bg-slate-900 px-2.5 py-1 rounded-xl text-white text-[15px] w-full focus:outline-none border border-indigo-500"
             />
           ) : (
             <span className="truncate">{conv.title}</span>
@@ -797,8 +797,8 @@ export default function ChatWorkspacePage() {
       <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-230px)] pr-1">
         {conversationGroups.pinned.length > 0 && (
           <div className="space-y-1">
-            <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1">
-              <Pin className="w-3 h-3 fill-indigo-400/20" />
+            <div className="px-2 text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+              <Pin className="w-3.5 h-3.5 fill-indigo-400/20" />
               <span>Pinned</span>
             </div>
             {conversationGroups.pinned.map(renderConversationItem)}
@@ -807,7 +807,7 @@ export default function ChatWorkspacePage() {
 
         {conversationGroups.today.length > 0 && (
           <div className="space-y-1">
-            <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <div className="px-2 text-xs font-bold uppercase tracking-wider text-zinc-400">
               Today
             </div>
             {conversationGroups.today.map(renderConversationItem)}
@@ -816,7 +816,7 @@ export default function ChatWorkspacePage() {
 
         {conversationGroups.yesterday.length > 0 && (
           <div className="space-y-1">
-            <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <div className="px-2 text-xs font-bold uppercase tracking-wider text-zinc-400">
               Yesterday
             </div>
             {conversationGroups.yesterday.map(renderConversationItem)}
@@ -825,7 +825,7 @@ export default function ChatWorkspacePage() {
 
         {conversationGroups.previous7Days.length > 0 && (
           <div className="space-y-1">
-            <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <div className="px-2 text-xs font-bold uppercase tracking-wider text-zinc-400">
               Previous 7 Days
             </div>
             {conversationGroups.previous7Days.map(renderConversationItem)}
@@ -834,7 +834,7 @@ export default function ChatWorkspacePage() {
 
         {conversationGroups.older.length > 0 && (
           <div className="space-y-1">
-            <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <div className="px-2 text-xs font-bold uppercase tracking-wider text-zinc-400">
               Older
             </div>
             {conversationGroups.older.map(renderConversationItem)}
@@ -907,21 +907,21 @@ export default function ChatWorkspacePage() {
             <div className="relative">
               <button
                 onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-white/10 hover:border-white/20 text-white text-xs font-medium transition-colors"
+                className="flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-slate-900 border border-white/10 hover:border-white/20 text-white text-sm font-semibold transition-colors"
               >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                <span className="capitalize font-semibold">
+                <Sparkles className="w-4 h-4 text-indigo-400" />
+                <span className="capitalize">
                   {selectedModel
                     .replace("nexora-", "Nexora ")
                     .replace("openai:", "OpenAI ")
                     .replace("anthropic:", "Anthropic ")}
                 </span>
-                <ChevronDown className="w-3 h-3 text-zinc-400" />
+                <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
               </button>
 
               {modelDropdownOpen && (
-                <div className="absolute top-full left-0 mt-2 w-72 rounded-2xl glass-panel border border-white/10 shadow-2xl p-2 space-y-2 z-50 animate-in fade-in zoom-in-95 duration-100">
-                  <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                <div className="absolute top-full left-0 mt-2 w-80 rounded-2xl glass-panel border border-white/15 shadow-2xl p-2.5 space-y-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-zinc-400">
                     Nexora Branded Profiles
                   </div>
                   {NEXORA_MODEL_FAMILIES.map((f) => (
@@ -931,21 +931,21 @@ export default function ChatWorkspacePage() {
                         setSelectedModel(f.slug);
                         setModelDropdownOpen(false);
                       }}
-                      className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
+                      className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm flex items-center justify-between transition-colors ${
                         selectedModel === f.slug
                           ? "bg-indigo-600 text-white font-medium"
                           : "text-zinc-300 hover:bg-white/5"
                       }`}
                     >
                       <div>
-                        <div className="font-semibold">{f.displayName} 1.0</div>
-                        <div className="text-[10px] text-zinc-400 line-clamp-1">{f.description}</div>
+                        <div className="font-semibold text-sm">{f.displayName} 1.0</div>
+                        <div className="text-xs text-zinc-400 line-clamp-1">{f.description}</div>
                       </div>
-                      {selectedModel === f.slug && <Check className="w-3.5 h-3.5" />}
+                      {selectedModel === f.slug && <Check className="w-4 h-4" />}
                     </button>
                   ))}
 
-                  <div className="px-2 pt-2 border-t border-white/5 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                  <div className="px-2.5 pt-2 border-t border-white/5 text-xs font-bold uppercase tracking-wider text-zinc-400">
                     Direct Foundation Models
                   </div>
                   {EXTERNAL_MODELS.map((m) => (
@@ -955,17 +955,17 @@ export default function ChatWorkspacePage() {
                         setSelectedModel(m.id);
                         setModelDropdownOpen(false);
                       }}
-                      className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
+                      className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm flex items-center justify-between transition-colors ${
                         selectedModel === m.id
                           ? "bg-indigo-600 text-white font-medium"
                           : "text-zinc-300 hover:bg-white/5"
                       }`}
                     >
                       <div>
-                        <div className="font-semibold">{m.displayName}</div>
-                        <div className="text-[10px] text-zinc-400">{m.providerKey.toUpperCase()}</div>
+                        <div className="font-semibold text-sm">{m.displayName}</div>
+                        <div className="text-xs text-zinc-400">{m.providerKey.toUpperCase()}</div>
                       </div>
-                      {selectedModel === m.id && <Check className="w-3.5 h-3.5" />}
+                      {selectedModel === m.id && <Check className="w-4 h-4" />}
                     </button>
                   ))}
                 </div>
@@ -975,7 +975,7 @@ export default function ChatWorkspacePage() {
             {/* Model Details Inspector Trigger */}
             <button
               onClick={() => setInspectingModelId(selectedModel)}
-              className="p-1.5 text-zinc-400 hover:text-indigo-400 rounded-lg hover:bg-white/5 transition-colors"
+              className="p-2 text-zinc-400 hover:text-indigo-400 rounded-xl hover:bg-white/5 transition-colors"
               title="Inspect model routing details & capabilities"
             >
               <Info className="w-4 h-4" />
@@ -985,16 +985,16 @@ export default function ChatWorkspacePage() {
           {/* Web Research Toggle */}
           <button
             onClick={() => setIncludeWebSearch(!includeWebSearch)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-semibold border transition-colors ${
               includeWebSearch
                 ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
-                : "bg-slate-900 text-zinc-400 border-white/5 hover:text-white"
+                : "bg-slate-900 text-zinc-300 border-white/10 hover:text-white"
             }`}
             title="Augment query with verified live web citations"
           >
-            <Search className="w-3.5 h-3.5" />
+            <Search className="w-4 h-4" />
             <span>Web Research</span>
-            {includeWebSearch && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+            {includeWebSearch && <span className="w-2 h-2 rounded-full bg-emerald-400" />}
           </button>
         </div>
 
@@ -1044,21 +1044,21 @@ export default function ChatWorkspacePage() {
                         }}
                         className={`group p-4 rounded-2xl glass-card bg-gradient-to-br ${p.gradient} border border-white/10 hover:border-white/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl text-left flex flex-col justify-between`}
                       >
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-white/5 text-zinc-400 border border-white/5">
-                              {p.category}
-                            </span>
-                            <ArrowUpRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors" />
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-white/5 text-zinc-300 border border-white/10">
+                                {p.category}
+                              </span>
+                              <ArrowUpRight className="w-4 h-4 text-zinc-400 group-hover:text-white transition-colors" />
+                            </div>
+                            <h4 className="text-base font-semibold text-white group-hover:text-indigo-300 transition-colors flex items-center gap-2">
+                              <Icon className={`w-4 h-4 ${p.iconColor}`} />
+                              <span>{p.title}</span>
+                            </h4>
+                            <p className="text-sm text-zinc-400 leading-relaxed line-clamp-2">
+                              {p.description}
+                            </p>
                           </div>
-                          <h4 className="text-sm font-semibold text-white group-hover:text-indigo-300 transition-colors flex items-center gap-2">
-                            <Icon className={`w-4 h-4 ${p.iconColor}`} />
-                            <span>{p.title}</span>
-                          </h4>
-                          <p className="text-xs text-zinc-400 leading-relaxed line-clamp-2">
-                            {p.description}
-                          </p>
-                        </div>
                       </button>
                     );
                   })}
@@ -1069,7 +1069,7 @@ export default function ChatWorkspacePage() {
                 {messages.map((msg) => (
                   <div key={msg.id} className="flex gap-3.5 group animate-in fade-in duration-200">
                     <div
-                      className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center text-sm font-bold shadow-md ${
+                      className={`w-10 h-10 rounded-2xl shrink-0 flex items-center justify-center text-base font-bold shadow-md ${
                         msg.role === "user"
                           ? "bg-gradient-to-br from-zinc-700 to-zinc-900 text-zinc-100 border border-white/10"
                           : "bg-slate-900 border border-indigo-500/30 p-1.5 shadow-indigo-600/20"
@@ -1078,18 +1078,18 @@ export default function ChatWorkspacePage() {
                       {msg.role === "user" ? (
                         "U"
                       ) : (
-                        <Image src="/nexora-logo.png?v=3" alt="Nexora" width={24} height={24} className="object-contain" unoptimized />
+                        <Image src="/nexora-logo.png?v=3" alt="Nexora" width={26} height={26} className="object-contain" unoptimized />
                       )}
                     </div>
 
                   <div className="flex-1 space-y-2.5">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <span className="text-sm font-semibold text-zinc-100">
+                        <span className="text-base font-semibold text-zinc-100">
                           {msg.role === "user" ? "You" : "Nexora Assistant"}
                         </span>
                         {msg.modelUsed && (
-                          <span className="text-xs px-2.5 py-0.5 rounded-md bg-zinc-800/90 text-zinc-300 font-mono">
+                          <span className="text-xs px-2.5 py-1 rounded-lg bg-zinc-800/90 text-zinc-300 font-mono">
                             {msg.modelUsed}
                           </span>
                         )}
@@ -1432,13 +1432,13 @@ export default function ChatWorkspacePage() {
                 }}
                 placeholder={`Message ${selectedModel.replace("nexora-", "Nexora ")}... (Shift+Enter for newline)`}
                 rows={1}
-                className="flex-1 max-h-36 bg-transparent text-base text-white placeholder-zinc-500 resize-none focus:outline-none py-2 px-1.5 leading-relaxed"
+                className="flex-1 max-h-36 bg-transparent text-[17px] text-white placeholder-zinc-500 resize-none focus:outline-none py-2 px-2 leading-relaxed"
               />
 
               {isStreaming ? (
                 <button
                   onClick={handleStop}
-                  className="p-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/20 transition-colors shrink-0"
+                  className="p-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/20 transition-colors shrink-0"
                   title="Stop response"
                 >
                   <Square className="w-5 h-5 fill-white" />
@@ -1447,7 +1447,7 @@ export default function ChatWorkspacePage() {
                 <button
                   onClick={() => handleSendMessage()}
                   disabled={!input.trim() && attachments.length === 0}
-                  className="p-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 disabled:opacity-40 disabled:hover:from-indigo-500 disabled:hover:to-violet-600 text-white shadow-md shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95 shrink-0"
+                  className="p-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 disabled:opacity-40 disabled:hover:from-indigo-500 disabled:hover:to-violet-600 text-white shadow-md shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95 shrink-0"
                   title="Send message"
                 >
                   <Send className="w-5 h-5" />
@@ -1456,22 +1456,22 @@ export default function ChatWorkspacePage() {
             </div>
 
             {/* Helper status & keyboard shortcut bar */}
-            <div className="flex items-center justify-between px-2 pt-1 text-[11px] text-zinc-500">
+            <div className="flex items-center justify-between px-2 pt-1 text-xs text-zinc-400">
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-zinc-400 font-medium">{selectedModel.replace("nexora-", "Nexora ").replace("openai:", "OpenAI ").replace("anthropic:", "Anthropic ")}</span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-zinc-300 font-medium">{selectedModel.replace("nexora-", "Nexora ").replace("openai:", "OpenAI ").replace("anthropic:", "Anthropic ")}</span>
                 </span>
                 {includeWebSearch && (
                   <span className="flex items-center gap-1 text-emerald-400 font-medium">
-                    <Search className="w-3 h-3" />
+                    <Search className="w-3.5 h-3.5" />
                     <span>Web Research Enabled</span>
                   </span>
                 )}
               </div>
-              <div className="hidden sm:flex items-center gap-2 text-zinc-500 font-mono text-[10px]">
-                <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10">↵ Send</span>
-                <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10">Shift + ↵ Newline</span>
+              <div className="hidden sm:flex items-center gap-2 text-zinc-400 font-mono text-xs">
+                <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10">↵ Send</span>
+                <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10">Shift + ↵ Newline</span>
               </div>
             </div>
           </div>

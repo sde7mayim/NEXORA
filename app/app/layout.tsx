@@ -175,14 +175,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <Link
             href="/app"
             title="New Conversation"
-            className="shimmer-btn w-full py-3 px-3.5 rounded-xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            className="shimmer-btn w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-base font-semibold flex items-center justify-center gap-2.5 shadow-lg shadow-indigo-600/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
-            <Plus className="w-4 h-4 shrink-0" />
+            <Plus className="w-5 h-5 shrink-0" />
             {!sidebarCollapsed && <span>New Conversation</span>}
           </Link>
 
           {/* Clean Streamlined Navigation Items */}
-          <nav className="space-y-1.5 text-sm">
+          <nav className="space-y-1.5 text-ui-nav">
             {navigation.map((item) => {
               const active = pathname === item.href;
               const Icon = item.icon;
@@ -192,19 +192,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   href={item.href}
                   title={item.name}
                   className={`flex items-center ${
-                    sidebarCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-3 py-2.5"
-                  } rounded-xl font-medium transition-all duration-150 ${
+                    sidebarCollapsed ? "justify-center px-2.5 py-3" : "justify-between px-3.5 py-3"
+                  } rounded-2xl font-medium text-[15.5px] transition-all duration-150 ${
                     active
                       ? "bg-indigo-600/15 text-white font-semibold shadow-sm border border-indigo-500/30"
-                      : "text-zinc-400 hover:text-white hover:bg-white/5"
+                      : "text-zinc-300 hover:text-white hover:bg-white/5"
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Icon className="w-4 h-4 shrink-0" />
+                    <Icon className="w-5 h-5 shrink-0" />
                     {!sidebarCollapsed && <span>{item.name}</span>}
                   </div>
                   {!sidebarCollapsed && (item as any).badge && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                       {(item as any).badge}
                     </span>
                   )}
@@ -216,14 +216,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* User Card & Version info */}
         <div className="pt-4 border-t border-white/5 space-y-3">
-          <div className={`flex items-center ${sidebarCollapsed ? "justify-center p-2" : "justify-between p-2.5"} rounded-xl bg-slate-900/60 border border-white/5`}>
+          <div className={`flex items-center ${sidebarCollapsed ? "justify-center p-2" : "justify-between p-3"} rounded-2xl bg-slate-900/60 border border-white/5`}>
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-indigo-600/30 border border-indigo-500/35 flex items-center justify-center text-indigo-300 text-sm font-bold shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-indigo-600/30 border border-indigo-500/35 flex items-center justify-center text-indigo-300 text-base font-bold shrink-0">
                 {avatarInitial}
               </div>
               {!sidebarCollapsed && (
                 <div className="flex flex-col min-w-0">
-                  <span className="text-sm font-semibold text-white truncate">{userName}</span>
+                  <span className="text-base font-semibold text-white truncate">{userName}</span>
                   <span className="text-xs text-zinc-400 truncate">{userEmail}</span>
                 </div>
               )}
@@ -232,14 +232,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <button
                 onClick={handleSignOut}
                 title="Sign out"
-                className="text-zinc-400 hover:text-rose-400 p-1.5 rounded-lg transition-colors"
+                className="text-zinc-400 hover:text-rose-400 p-2 rounded-xl transition-colors hover:bg-white/5"
               >
                 <LogOut className="w-4 h-4" />
               </button>
             )}
           </div>
           {!sidebarCollapsed && (
-            <div className="text-[11px] text-zinc-500 text-center font-mono">
+            <div className="text-xs text-zinc-500 text-center font-mono">
               {getAppVersionDisplay()}
             </div>
           )}

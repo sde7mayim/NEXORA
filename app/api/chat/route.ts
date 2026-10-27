@@ -4,6 +4,7 @@ import { ModelRouter } from "@/lib/ai/router";
 import { ModelOrchestrator } from "@/lib/ai/orchestrator";
 import { EntitlementEngine } from "@/lib/entitlements/engine";
 import { WebResearchService } from "@/lib/research/search-adapter";
+import { MemoryService, UserMemoryItem } from "@/lib/memory/memory-service";
 
 const ChatRequestSchema = z.object({
   modelSelectionId: z.string().min(1),
@@ -68,6 +69,52 @@ export async function POST(req: NextRequest) {
     let contextualMessages = [...messages];
     let researchCitations: Array<{ title: string; url: string; snippet: string }> = [];
 
+    // 3a. Persistent Personal Memory: candidate extraction & safe merge
+    let extractedMemoriesSummary: string | null = null;
+    if (userPrompt && userId) {
+      try {
+        const candidates = await MemoryService.extractCandidateMemories(userId, userPrompt, {
+          type: "conversation",
+          reference: "Active Chat",
+        });
+        if (candidates.length > 0) {
+          const mergedResults = [];
+          for (const cand of candidates) {
+            const res = await MemoryService.mergeMemoryUpdate(userId, cand);
+            mergedResults.push(res);
+          }
+          const novelOrUpdated = mergedResults.filter(
+            (r) => r.action === "created" || r.action === "merged" || r.action === "updated"
+          );
+          if (novelOrUpdated.length > 0) {
+            extractedMemoriesSummary = novelOrUpdated.map((r) => r.memory.summary).join("; ");
+          }
+        }
+      } catch (memExtractErr) {
+        console.warn("[MemoryService] Candidate extraction/merge skipped:", memExtractErr);
+      }
+    }
+
+    // 3b. Retrieve relevant memories for the current prompt and build memory context
+    let retrievedMemoriesList: UserMemoryItem[] = [];
+    if (userPrompt && userId) {
+      try {
+        const { contextText, retrievedMemories } = await MemoryService.buildMemoryContext(
+          userId,
+          userPrompt
+        );
+        retrievedMemoriesList = retrievedMemories;
+        if (contextText) {
+          contextualMessages.push({
+            role: "system",
+            content: contextText,
+          });
+        }
+      } catch (memRetrieveErr) {
+        console.warn("[MemoryService] Context retrieval skipped:", memRetrieveErr);
+      }
+    }
+
     // System instruction: ChatGPT / Gemini level depth, structure, and authoritative answers
     const baseSystemPrompt = `You are Nexora, an advanced, highly knowledgeable, and articulate AI assistant created to provide ChatGPT Plus and Gemini Advanced level intelligence.
 
@@ -81,7 +128,8 @@ CORE RESPONSE GUIDELINES:
    - Deeply analyze and answer the exact question the user asks across any domain (programming, science, mathematics, history, business, lifestyle, weather, etc.).
    - Never output meta-commentary, excuses, or disclaimers about cut-off dates.
    - NEVER refuse by saying "I don't have access to real-time live data", "I don't have internet access", or telling the user to "check Google Search / check weather apps".
-   - When live search or weather data is provided in context, present the factual findings, temperatures, metrics, and details seamlessly, authoritatively, and naturally.`;
+   - When live search or weather data is provided in context, present the factual findings, temperatures, metrics, and details seamlessly, authoritatively, and naturally.
+   - When persistent memory context about the user's skills, experience, or preferences is present, answer directly based on that accumulated profile without requiring them to re-upload files or repeat details.`;
 
     const existingSystemIdx = contextualMessages.findIndex((m) => m.role === "system");
     if (existingSystemIdx >= 0) {
@@ -137,6 +185,8 @@ CORE RESPONSE GUIDELINES:
                 correlationId: orchestration.correlationId,
                 actualModel: orchestration.actualModelId,
                 fallbackTriggered: orchestration.fallbackTriggered,
+                memoryCount: retrievedMemoriesList.length,
+                newlyLearned: extractedMemoriesSummary,
               })}\n\n`
             )
           );

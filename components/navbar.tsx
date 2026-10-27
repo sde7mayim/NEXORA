@@ -18,7 +18,7 @@ export function Navbar() {
         </Link>
 
         {/* Desktop Nav Links */}
-        <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-zinc-300">
+        <nav className="hidden md:flex items-center gap-8 text-[16px] font-medium text-zinc-300">
           <Link href="/features" className="hover:text-white transition-colors">
             Features
           </Link>
@@ -40,13 +40,13 @@ export function Navbar() {
         <div className="hidden md:flex items-center gap-4">
           <Link
             href="/login"
-            className="text-sm font-medium text-zinc-300 hover:text-white transition-colors px-3 py-1.5"
+            className="text-[16px] font-medium text-zinc-300 hover:text-white transition-colors px-4 py-2"
           >
             Sign in
           </Link>
           <Link
             href="/signup"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:from-indigo-600 hover:to-violet-700 shadow-md shadow-indigo-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-base font-semibold bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:from-indigo-600 hover:to-violet-700 shadow-md shadow-indigo-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             Start for Free
             <ArrowRight className="w-4 h-4" />

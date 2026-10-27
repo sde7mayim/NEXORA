@@ -137,13 +137,13 @@ export default function LandingPage() {
         {/* ================================================================== */}
         <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-indigo-400 mb-2">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-indigo-400 mb-2">
               Transparent Intelligence Routing
             </h2>
-            <h3 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
+            <h3 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight">
               Curated Profiles. Proven Foundation Models.
             </h3>
-            <p className="mt-4 text-zinc-400 text-sm sm:text-base">
+            <p className="mt-4 text-zinc-300 text-base sm:text-lg leading-relaxed">
               Nexora branded profiles are managed routing profiles over official third-party APIs. We pair the right model with the right task.
             </p>
           </div>
@@ -155,18 +155,18 @@ export default function LandingPage() {
                 className="interactive-card rounded-2xl glass-card p-6 flex flex-col justify-between hover:border-indigo-500/40 transition-all group"
               >
                 <div>
-                  <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-4 group-hover:scale-110 transition-transform">
-                    {family.slug === "nexora-swift" && <Zap className="w-5 h-5" />}
-                    {family.slug === "nexora-core" && <Cpu className="w-5 h-5" />}
-                    {family.slug === "nexora-reason" && <Layers className="w-5 h-5" />}
-                    {family.slug === "nexora-vision" && <Sparkles className="w-5 h-5" />}
+                  <div className="w-12 h-12 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-4 group-hover:scale-110 transition-transform">
+                    {family.slug === "nexora-swift" && <Zap className="w-6 h-6" />}
+                    {family.slug === "nexora-core" && <Cpu className="w-6 h-6" />}
+                    {family.slug === "nexora-reason" && <Layers className="w-6 h-6" />}
+                    {family.slug === "nexora-vision" && <Sparkles className="w-6 h-6" />}
                   </div>
-                  <h4 className="text-lg font-bold text-white mb-2">{family.displayName} 1.0</h4>
-                  <p className="text-xs text-zinc-400 leading-relaxed">{family.description}</p>
+                  <h4 className="text-xl font-bold text-white mb-2">{family.displayName} 1.0</h4>
+                  <p className="text-sm text-zinc-300 leading-relaxed">{family.description}</p>
                 </div>
-                <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between text-xs text-zinc-500">
+                <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between text-sm text-zinc-400">
                   <span>Version 1.0.0</span>
-                  <span className="text-indigo-400 font-medium">Active</span>
+                  <span className="text-indigo-400 font-semibold">Active</span>
                 </div>
               </div>
             ))}
@@ -180,43 +180,43 @@ export default function LandingPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {/* Feature 1 */}
-              <div className="interactive-card rounded-2xl glass-card p-8 border border-white/5 space-y-4">
-                <div className="w-12 h-12 rounded-xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400">
-                  <FileText className="w-6 h-6" />
+              <div className="interactive-card rounded-3xl glass-card p-8 border border-white/10 space-y-4 shadow-xl">
+                <div className="w-14 h-14 rounded-2xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400">
+                  <FileText className="w-7 h-7" />
                 </div>
-                <h4 className="text-xl font-bold text-white">Document Reasoning</h4>
-                <p className="text-sm text-zinc-400 leading-relaxed">
+                <h4 className="text-2xl font-bold text-white">Document Reasoning</h4>
+                <p className="text-base text-zinc-300 leading-relaxed">
                   Upload PDFs, DOCX, CSV, TXT, and Markdown files safely. Our pipeline validates magic byte signatures, extracts content, and injects context directly into multi-model discussions.
                 </p>
-                <div className="text-xs text-indigo-400 font-medium pt-2">
+                <div className="text-sm text-indigo-400 font-semibold pt-2">
                   Available on Free, Pro, and Enterprise
                 </div>
               </div>
 
               {/* Feature 2 */}
-              <div className="interactive-card rounded-2xl glass-card p-8 border border-white/5 space-y-4">
-                <div className="w-12 h-12 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
-                  <Search className="w-6 h-6" />
+              <div className="interactive-card rounded-3xl glass-card p-8 border border-white/10 space-y-4 shadow-xl">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                  <Search className="w-7 h-7" />
                 </div>
-                <h4 className="text-xl font-bold text-white">Source-Grounded Research</h4>
-                <p className="text-sm text-zinc-400 leading-relaxed">
+                <h4 className="text-2xl font-bold text-white">Source-Grounded Research</h4>
+                <p className="text-base text-zinc-300 leading-relaxed">
                   Search live web sources without hallucinations. Requests pass through our SSRF security guardrails, extracting evidence and providing verifiable citation links for every claim.
                 </p>
-                <div className="text-xs text-indigo-400 font-medium pt-2">
+                <div className="text-sm text-indigo-400 font-semibold pt-2">
                   Available on Free, Pro, and Enterprise
                 </div>
               </div>
 
               {/* Feature 3 */}
-              <div className="interactive-card rounded-2xl glass-card p-8 border border-white/5 space-y-4">
-                <div className="w-12 h-12 rounded-xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                  <Shield className="w-6 h-6" />
+              <div className="interactive-card rounded-3xl glass-card p-8 border border-white/10 space-y-4 shadow-xl">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <Shield className="w-7 h-7" />
                 </div>
-                <h4 className="text-xl font-bold text-white">Enterprise Governance</h4>
-                <p className="text-sm text-zinc-400 leading-relaxed">
+                <h4 className="text-2xl font-bold text-white">Enterprise Governance</h4>
+                <p className="text-base text-zinc-300 leading-relaxed">
                   Role-based access control, PostgreSQL Row Level Security (RLS), approved model policies, token cost accounting, and cryptographic audit logs ensure complete tenant isolation.
                 </p>
-                <div className="text-xs text-indigo-400 font-medium pt-2">
+                <div className="text-sm text-indigo-400 font-semibold pt-2">
                   Multi-seat organizations & compliance
                 </div>
               </div>
@@ -229,52 +229,52 @@ export default function LandingPage() {
         {/* ================================================================== */}
         <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-indigo-400 mb-2">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-indigo-400 mb-2">
               Transparent SaaS Plans
             </h2>
-            <h3 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
+            <h3 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight">
               Fair limits. Core features on every tier.
             </h3>
-            <p className="mt-4 text-zinc-400 text-sm">
+            <p className="mt-4 text-zinc-300 text-base sm:text-lg">
               We never disable Chat History, File Uploads, or Web Research on lower tiers.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Free */}
-            <div className="rounded-2xl glass-card p-8 border border-white/10 flex flex-col justify-between">
+            <div className="rounded-3xl glass-card p-8 border border-white/10 flex flex-col justify-between shadow-xl">
               <div>
-                <h4 className="text-lg font-bold text-white">{PLAN_CONFIGS.free.displayName}</h4>
+                <h4 className="text-xl font-bold text-white">{PLAN_CONFIGS.free.displayName}</h4>
                 <div className="mt-4 mb-6">
                   <span className="text-4xl font-extrabold text-white">₹0</span>
-                  <span className="text-zinc-400 text-xs ml-2">forever free</span>
+                  <span className="text-zinc-400 text-sm ml-2">forever free</span>
                 </div>
-                <ul className="space-y-3 text-xs text-zinc-300">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <ul className="space-y-3.5 text-sm text-zinc-200">
+                  <li className="flex items-center gap-2.5">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                     <span>10 AI messages / day (100 / mo)</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <li className="flex items-center gap-2.5">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                     <span>3 Web research searches / mo</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <li className="flex items-center gap-2.5">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                     <span>File upload (up to 5 MB per file)</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <li className="flex items-center gap-2.5">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                     <span>Chat history with 30-day retention</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <li className="flex items-center gap-2.5">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                     <span>Nexora Swift & Core models</span>
                   </li>
                 </ul>
               </div>
               <Link
                 href="/signup?plan=free"
-                className="mt-8 w-full py-2.5 rounded-xl text-center text-sm font-semibold glass-card hover:bg-white/10 text-white transition-colors"
+                className="mt-8 w-full py-3.5 rounded-2xl text-center text-base font-semibold glass-card hover:bg-white/10 text-white transition-colors"
               >
                 Get Started
               </Link>
