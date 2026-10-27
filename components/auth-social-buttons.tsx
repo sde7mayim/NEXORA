@@ -267,13 +267,13 @@ export function AuthSocialButtons({
   return (
     <div className="space-y-3">
       {/* Social Buttons Stack */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {/* Continue with Google */}
         <button
           type="button"
           onClick={handleGoogleAuth}
           disabled={loadingProvider !== null}
-          className="w-full py-2.5 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all hover:border-white/20 active:scale-[0.99] shadow-sm"
+          className="w-full py-3 px-3.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-white text-sm font-semibold flex items-center justify-center gap-2.5 transition-all hover:border-white/25 active:scale-[0.99] shadow-md"
         >
           {/* Google G SVG */}
           <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
@@ -302,7 +302,7 @@ export function AuthSocialButtons({
           type="button"
           onClick={handleAppleAuth}
           disabled={loadingProvider !== null}
-          className="w-full py-2.5 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all hover:border-white/20 active:scale-[0.99] shadow-sm"
+          className="w-full py-3 px-3.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-white text-sm font-semibold flex items-center justify-center gap-2.5 transition-all hover:border-white/25 active:scale-[0.99] shadow-md"
         >
           {/* Apple Logo SVG */}
           <svg className="w-4 h-4 fill-current text-white shrink-0" viewBox="0 0 170 170">
@@ -318,7 +318,7 @@ export function AuthSocialButtons({
             setPhoneModalOpen(true);
             setPhoneError(null);
           }}
-          className="w-full py-2.5 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all hover:border-white/20 active:scale-[0.99] shadow-sm"
+          className="w-full py-3 px-3.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-white text-sm font-semibold flex items-center justify-center gap-2.5 transition-all hover:border-white/25 active:scale-[0.99] shadow-md"
         >
           <Phone className="w-4 h-4 text-emerald-400 shrink-0" />
           <span className="truncate">Phone</span>

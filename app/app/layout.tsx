@@ -103,24 +103,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   };
 
   const navigation = [
-    { name: "New Chat", href: "/app", icon: Plus, highlight: true },
-    { name: "Conversations", href: "/app/chat", icon: MessageSquare },
+    { name: "Chat", href: "/app", icon: MessageSquare },
+    { name: "Models", href: "/app/models", icon: Layers },
+    { name: "Files", href: "/app/files", icon: FolderOpen },
+    { name: "Web Research", href: "/app/research", icon: Search },
+    { name: "Billing & Plans", href: "/app/billing", icon: CreditCard },
+    { name: "Settings", href: "/app/settings", icon: Settings },
     ...(isOwner
       ? [{ name: "Admin Console", href: "/app/admin", icon: ShieldCheck, badge: "Owner" }]
       : []),
-    { name: "Knowledge Hub", href: "/app/knowledge", icon: BookOpen },
-    { name: "AI Workflows", href: "/app/workflows", icon: Cpu },
-    { name: "Models Directory", href: "/app/models", icon: Layers },
-    { name: "File Library", href: "/app/files", icon: FolderOpen },
-    { name: "Web Research", href: "/app/research", icon: Search },
-    { name: "Usage & Analytics", href: "/app/analytics", icon: BarChart2 },
-    { name: "Developer Platform", href: "/app/developer", icon: Code2 },
-    { name: "Diagnostics & Ops", href: "/app/diagnostics", icon: Activity },
-    { name: "Quality Evaluations", href: "/app/evaluations", icon: Award },
-    { name: "Enterprise Workspace", href: "/app/enterprise", icon: Building2 },
-    { name: "Billing & Plans", href: "/app/billing", icon: CreditCard },
-    { name: "Settings", href: "/app/settings", icon: Settings },
-    { name: "Help & Support", href: "/contact", icon: HelpCircle },
   ];
 
   return (
@@ -151,88 +142,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
 
             {!sidebarCollapsed && (
-              <>
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                    {userPlan} Plan
+              <div className="flex items-center justify-between px-1 pt-1.5 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="font-semibold text-zinc-300 capitalize">{userPlan} Workspace</span>
+                </div>
+                {isOwner && (
+                  <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/15 px-2 py-0.5 rounded-md border border-indigo-500/25">
+                    Owner
                   </span>
-                </div>
-
-                {/* Interactive Workspace Dropdown */}
-                <div className="relative">
-                  <button
-                    onClick={() => setWorkspaceDropdownOpen(!workspaceDropdownOpen)}
-                    className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900/80 hover:bg-slate-900 border border-white/5 text-xs text-left transition-colors"
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <Building2 className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                      <span className="font-medium text-white truncate">{currentWorkspace}</span>
-                    </div>
-                    <ChevronDown className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                  </button>
-
-                  {workspaceDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-1 z-50 p-1.5 rounded-xl bg-slate-900 border border-white/10 shadow-xl space-y-1">
-                      <button
-                        onClick={() => {
-                          setCurrentWorkspace("Acme Corp AI Labs");
-                          setUserPlan("enterprise");
-                          setWorkspaceDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between ${
-                          currentWorkspace === "Acme Corp AI Labs"
-                            ? "bg-indigo-600 text-white font-medium"
-                            : "text-zinc-300 hover:bg-white/5"
-                        }`}
-                      >
-                        <span>Acme Corp AI Labs</span>
-                        <span className="text-[10px] opacity-75 font-mono">Enterprise</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          setCurrentWorkspace("Suriyan Family Workspace");
-                          setUserPlan("family");
-                          setWorkspaceDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between ${
-                          currentWorkspace === "Suriyan Family Workspace"
-                            ? "bg-indigo-600 text-white font-medium"
-                            : "text-zinc-300 hover:bg-white/5"
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <Users className="w-3 h-3 text-indigo-400" />
-                          <span>Suriyan Family</span>
-                        </div>
-                        <span className="text-[10px] opacity-75 font-mono">Family</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          setCurrentWorkspace("Personal Workspace");
-                          setUserPlan("pro");
-                          setWorkspaceDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between ${
-                          currentWorkspace === "Personal Workspace"
-                            ? "bg-indigo-600 text-white font-medium"
-                            : "text-zinc-300 hover:bg-white/5"
-                        }`}
-                      >
-                        <span>Personal Workspace</span>
-                        <span className="text-[10px] opacity-75 font-mono">Pro</span>
-                      </button>
-                      <Link
-                        href="/app/enterprise"
-                        onClick={() => setWorkspaceDropdownOpen(false)}
-                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 text-indigo-400 hover:bg-indigo-500/10 font-medium"
-                      >
-                        <Plus className="w-3 h-3" />
-                        <span>Manage Workspaces</span>
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              </>
+                )}
+              </div>
             )}
           </div>
 
@@ -240,15 +160,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <Link
             href="/app"
             title="New Conversation"
-            className={`w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-xs font-semibold flex items-center justify-center gap-2 shadow-md shadow-indigo-600/20 transition-all hover:scale-[1.01]`}
+            className="w-full py-3 px-3.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/25 transition-all hover:scale-[1.01]"
           >
             <Plus className="w-4 h-4 shrink-0" />
             {!sidebarCollapsed && <span>New Conversation</span>}
           </Link>
 
-          {/* Navigation Items */}
-          <nav className="space-y-1 text-xs">
-            {navigation.slice(1).map((item) => {
+          {/* Clean Streamlined Navigation Items */}
+          <nav className="space-y-1.5 text-sm">
+            {navigation.map((item) => {
               const active = pathname === item.href;
               const Icon = item.icon;
               return (
@@ -257,15 +177,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   href={item.href}
                   title={item.name}
                   className={`flex items-center ${
-                    sidebarCollapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2"
+                    sidebarCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-3 py-2.5"
                   } rounded-xl font-medium transition-colors ${
                     active
-                      ? "bg-white/10 text-white font-semibold"
+                      ? "bg-white/10 text-white font-semibold shadow-sm"
                       : "text-zinc-400 hover:text-white hover:bg-white/5"
                   }`}
                 >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  {!sidebarCollapsed && <span>{item.name}</span>}
+                  <div className="flex items-center gap-3">
+                    <Icon className="w-4 h-4 shrink-0" />
+                    {!sidebarCollapsed && <span>{item.name}</span>}
+                  </div>
+                  {!sidebarCollapsed && (item as any).badge && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                      {(item as any).badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -274,15 +201,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* User Card & Version info */}
         <div className="pt-4 border-t border-white/5 space-y-3">
-          <div className={`flex items-center ${sidebarCollapsed ? "justify-center p-1.5" : "justify-between p-2"} rounded-xl bg-slate-900/60 border border-white/5`}>
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-7 h-7 rounded-lg bg-indigo-600/30 border border-indigo-500/30 flex items-center justify-center text-indigo-300 text-xs font-bold shrink-0">
+          <div className={`flex items-center ${sidebarCollapsed ? "justify-center p-2" : "justify-between p-2.5"} rounded-xl bg-slate-900/60 border border-white/5`}>
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-indigo-600/30 border border-indigo-500/35 flex items-center justify-center text-indigo-300 text-sm font-bold shrink-0">
                 {avatarInitial}
               </div>
               {!sidebarCollapsed && (
                 <div className="flex flex-col min-w-0">
-                  <span className="text-xs font-medium text-white truncate">{userName}</span>
-                  <span className="text-[10px] text-zinc-500 truncate">{userEmail}</span>
+                  <span className="text-sm font-semibold text-white truncate">{userName}</span>
+                  <span className="text-xs text-zinc-400 truncate">{userEmail}</span>
                 </div>
               )}
             </div>
@@ -290,14 +217,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <button
                 onClick={handleSignOut}
                 title="Sign out"
-                className="text-zinc-500 hover:text-rose-400 p-1 rounded-lg transition-colors"
+                className="text-zinc-400 hover:text-rose-400 p-1.5 rounded-lg transition-colors"
               >
-                <LogOut className="w-3.5 h-3.5" />
+                <LogOut className="w-4 h-4" />
               </button>
             )}
           </div>
           {!sidebarCollapsed && (
-            <div className="text-[10px] text-zinc-600 text-center font-mono">
+            <div className="text-[11px] text-zinc-500 text-center font-mono">
               {getAppVersionDisplay()}
             </div>
           )}

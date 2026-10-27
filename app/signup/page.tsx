@@ -124,10 +124,10 @@ function SignupForm() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Social & Alternative Auth Options */}
-      <div className="space-y-2">
-        <span className="block text-[11px] font-semibold text-zinc-400 uppercase tracking-wider text-center">
+      <div className="space-y-2.5">
+        <span className="block text-xs font-bold text-zinc-400 uppercase tracking-wider text-center">
           Sign up with 1-click
         </span>
         <AuthSocialButtons source="signup" />
@@ -135,75 +135,75 @@ function SignupForm() {
 
       <div className="relative flex items-center justify-center">
         <div className="border-t border-white/10 w-full" />
-        <span className="bg-slate-950 px-3 text-[11px] uppercase tracking-wider text-zinc-500 font-medium">
+        <span className="bg-slate-950 px-3.5 text-xs uppercase tracking-wider text-zinc-400 font-semibold">
           Or with email
         </span>
       </div>
 
-      <form onSubmit={handleSignup} className="space-y-4">
+      <form onSubmit={handleSignup} className="space-y-5">
         {error && (
-          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
+          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm flex items-center gap-2.5">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         <div>
-          <label className="block text-xs font-medium text-zinc-300 mb-1.5">Full Name</label>
+          <label className="block text-sm font-semibold text-zinc-200 mb-2">Full Name</label>
           <div className="relative">
-            <User className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <User className="w-5 h-5 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Joshua Suriyan"
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white text-sm focus:outline-none focus:border-indigo-500"
+              className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-900 border border-white/10 text-white text-base focus:outline-none focus:border-indigo-500 transition-colors"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-zinc-300 mb-1.5">Email address</label>
+          <label className="block text-sm font-semibold text-zinc-200 mb-2">Email address</label>
           <div className="relative">
-            <Mail className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Mail className="w-5 h-5 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="name@company.com"
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white text-sm focus:outline-none focus:border-indigo-500"
+              className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-900 border border-white/10 text-white text-base focus:outline-none focus:border-indigo-500 transition-colors"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-zinc-300 mb-1.5">Password</label>
+          <label className="block text-sm font-semibold text-zinc-200 mb-2">Password</label>
           <div className="relative">
-            <Lock className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Lock className="w-5 h-5 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 8 characters"
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white text-sm focus:outline-none focus:border-indigo-500"
+              className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-900 border border-white/10 text-white text-base focus:outline-none focus:border-indigo-500 transition-colors"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-zinc-300 mb-1.5">Selected Plan</label>
-          <div className="grid grid-cols-3 gap-2 text-xs">
+          <label className="block text-sm font-semibold text-zinc-200 mb-2">Selected Plan</label>
+          <div className="grid grid-cols-3 gap-2.5 text-sm">
             {(["free", "pro", "enterprise"] as const).map((p) => (
               <button
                 key={p}
                 type="button"
                 onClick={() => setPlan(p)}
-                className={`py-2 px-3 rounded-xl border text-center font-medium capitalize transition-all ${
+                className={`py-2.5 px-3 rounded-xl border text-center font-semibold capitalize transition-all ${
                   plan === p
-                    ? "bg-indigo-600/30 border-indigo-500 text-white shadow-sm"
+                    ? "bg-indigo-600/35 border-indigo-500 text-white shadow-md shadow-indigo-500/20"
                     : "bg-slate-900 border-white/5 text-zinc-400 hover:text-white"
                 }`}
               >
@@ -216,7 +216,7 @@ function SignupForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full mt-2 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-sm font-semibold shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99]"
+          className="w-full mt-2 py-3.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-base font-bold shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
         >
           <span>{loading ? "Registering & Dispatching Email..." : "Create Account & Send Register Email"}</span>
           <ArrowRight className="w-4 h-4" />
@@ -231,21 +231,21 @@ export default function SignupPage() {
     <div className="min-h-screen bg-slate-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-indigo-600/10 blur-[100px] rounded-full pointer-events-none" />
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 text-center">
-        <Link href="/" className="inline-flex items-center gap-2 group mb-4 hover:opacity-90 transition-opacity">
+      <div className="sm:mx-auto sm:w-full sm:max-w-lg relative z-10 text-center">
+        <Link href="/" className="inline-flex items-center gap-2 group mb-5 hover:opacity-90 transition-opacity">
           <NexoraLogo size="lg" />
         </Link>
-        <h2 className="text-2xl font-bold tracking-tight text-white">Create your Nexora account</h2>
-        <p className="mt-2 text-xs text-zinc-400">
+        <h2 className="text-3xl font-extrabold tracking-tight text-white">Create your Nexora account</h2>
+        <p className="mt-2.5 text-sm text-zinc-300">
           Already registered?{" "}
-          <Link href="/login" className="text-indigo-400 hover:text-indigo-300 font-medium">
+          <Link href="/login" className="text-indigo-400 hover:text-indigo-300 font-semibold underline underline-offset-4">
             Sign in here
           </Link>
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        <div className="rounded-2xl glass-card p-8 border border-white/10 shadow-2xl">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-lg relative z-10">
+        <div className="rounded-2xl glass-card p-7 sm:p-9 border border-white/10 shadow-2xl">
           <Suspense fallback={<div className="p-8 text-center text-zinc-400">Loading signup...</div>}>
             <SignupForm />
           </Suspense>

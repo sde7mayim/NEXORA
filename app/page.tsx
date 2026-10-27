@@ -18,7 +18,7 @@ import {
 import { NEXORA_MODEL_FAMILIES } from "@/lib/ai/model-registry";
 import { PLAN_CONFIGS } from "@/lib/entitlements/types";
 import { formatPrice } from "@/lib/utils";
-import { HomeHeroAuth } from "@/components/home-hero-auth";
+
 
 export default function LandingPage() {
   return (
@@ -77,8 +77,7 @@ export default function LandingPage() {
               </Link>
             </div>
 
-            {/* Fast 1-Click Social/Phone Auth & Resume Workspace Banner */}
-            <HomeHeroAuth />
+
 
             {/* Interactive Workspace Preview */}
             <div className="mt-16 max-w-5xl mx-auto rounded-2xl glass-panel p-2 shadow-2xl border border-white/10">
