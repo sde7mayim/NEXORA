@@ -118,19 +118,8 @@ export function HomeHeroAuth() {
 
         SavedAccountManager.saveAccount({
           email: cleanEmail,
-          name: cleanEmail === "thzcreterz05@gmail.com" ? "Joshua Suriyan" : cleanEmail.split("@")[0],
+          name: cleanEmail.split("@")[0],
         });
-
-        await fetch("/api/auth/notify-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "account_registered",
-            email: cleanEmail,
-            name: cleanEmail === "thzcreterz05@gmail.com" ? "Joshua Suriyan" : cleanEmail.split("@")[0],
-            selectedPlan: cleanEmail === "thzcreterz05@gmail.com" ? "enterprise" : "pro",
-          }),
-        }).catch(() => {});
 
         router.push("/app");
       } else {

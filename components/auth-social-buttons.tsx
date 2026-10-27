@@ -97,17 +97,19 @@ export function AuthSocialButtons({
                       provider: "google",
                     });
 
-                    // Dispatch welcome & registration confirmation email
-                    await fetch("/api/auth/notify-email", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        action: "account_registered",
-                        email: cleanEmail,
-                        name: cleanName,
-                        selectedPlan: "pro",
-                      }),
-                    }).catch(() => {});
+                    // Dispatch welcome & registration confirmation email ONLY if creating a new account (signup)
+                    if (source === "signup") {
+                      await fetch("/api/auth/notify-email", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          action: "account_registered",
+                          email: cleanEmail,
+                          name: cleanName,
+                          selectedPlan: "pro",
+                        }),
+                      }).catch(() => {});
+                    }
 
                     router.push(onSuccessRedirect);
                     return;
@@ -181,17 +183,19 @@ export function AuthSocialButtons({
       provider,
     });
 
-    // Dispatch welcome notification to owner
-    await fetch("/api/auth/notify-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "account_registered",
-        email,
-        name,
-        selectedPlan: "enterprise",
-      }),
-    }).catch(() => {});
+    // Dispatch welcome notification only on signup
+    if (source === "signup") {
+      await fetch("/api/auth/notify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "account_registered",
+          email,
+          name,
+          selectedPlan: "enterprise",
+        }),
+      }).catch(() => {});
+    }
 
     setProviderModalOpen(false);
     router.push(onSuccessRedirect);
@@ -246,17 +250,19 @@ export function AuthSocialButtons({
       provider: "phone",
     });
 
-    // Dispatch welcome notification
-    await fetch("/api/auth/notify-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "account_registered",
-        email: mockEmail,
-        name,
-        selectedPlan: "free",
-      }),
-    }).catch(() => {});
+    // Dispatch welcome notification only if new signup
+    if (source === "signup") {
+      await fetch("/api/auth/notify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "account_registered",
+          email: mockEmail,
+          name,
+          selectedPlan: "free",
+        }),
+      }).catch(() => {});
+    }
 
     setTimeout(() => {
       setPhoneModalOpen(false);

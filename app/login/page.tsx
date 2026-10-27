@@ -85,35 +85,12 @@ export default function LoginPage() {
         return;
       }
 
-      // Dispatch login & registered workspace details to the logged in email
-      await fetch("/api/auth/notify-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "account_registered",
-          email: cleanEmail,
-          name: cleanEmail.split("@")[0],
-          selectedPlan: (cleanEmail === "thzcreterz05@gmail.com" || cleanEmail === "sde7mayim@gmail.com") ? "enterprise" : "pro",
-        }),
-      }).catch(() => {});
-
       router.push("/app");
     } catch {
       SavedAccountManager.saveAccount({
         email: cleanEmail,
         name: cleanEmail.split("@")[0],
       });
-
-      await fetch("/api/auth/notify-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "account_registered",
-          email: cleanEmail,
-          name: cleanEmail.split("@")[0],
-          selectedPlan: (cleanEmail === "thzcreterz05@gmail.com" || cleanEmail === "sde7mayim@gmail.com") ? "enterprise" : "pro",
-        }),
-      }).catch(() => {});
 
       router.push("/app");
     }
