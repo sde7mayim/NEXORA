@@ -46,6 +46,21 @@ export default function LoginPage() {
 
     try {
       const supabase = createClient();
+
+      // Clear any prior lingering session if different from the logging in email
+      try {
+        const { data: currentSession } = await supabase.auth.getUser();
+        if (currentSession?.user?.email && currentSession.user.email.toLowerCase().trim() !== cleanEmail) {
+          await supabase.auth.signOut().catch(() => {});
+        }
+      } catch {}
+
+      // Save active email immediately so workspace loads this exact account
+      SavedAccountManager.saveAccount({
+        email: cleanEmail,
+        name: cleanEmail.split("@")[0],
+      });
+
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password,
@@ -70,12 +85,6 @@ export default function LoginPage() {
         return;
       }
 
-      // Save email for next time
-      SavedAccountManager.saveAccount({
-        email: cleanEmail,
-        name: cleanEmail === "thzcreterz05@gmail.com" ? "Joshua Suriyan" : cleanEmail.split("@")[0],
-      });
-
       // Dispatch login & registered workspace details to the logged in email
       await fetch("/api/auth/notify-email", {
         method: "POST",
@@ -83,8 +92,8 @@ export default function LoginPage() {
         body: JSON.stringify({
           action: "account_registered",
           email: cleanEmail,
-          name: cleanEmail === "thzcreterz05@gmail.com" ? "Joshua Suriyan" : cleanEmail.split("@")[0],
-          selectedPlan: cleanEmail === "thzcreterz05@gmail.com" ? "enterprise" : "pro",
+          name: cleanEmail.split("@")[0],
+          selectedPlan: (cleanEmail === "thzcreterz05@gmail.com" || cleanEmail === "sde7mayim@gmail.com") ? "enterprise" : "pro",
         }),
       }).catch(() => {});
 
@@ -92,7 +101,7 @@ export default function LoginPage() {
     } catch {
       SavedAccountManager.saveAccount({
         email: cleanEmail,
-        name: cleanEmail === "thzcreterz05@gmail.com" ? "Joshua Suriyan" : cleanEmail.split("@")[0],
+        name: cleanEmail.split("@")[0],
       });
 
       await fetch("/api/auth/notify-email", {
@@ -101,8 +110,8 @@ export default function LoginPage() {
         body: JSON.stringify({
           action: "account_registered",
           email: cleanEmail,
-          name: cleanEmail === "thzcreterz05@gmail.com" ? "Joshua Suriyan" : cleanEmail.split("@")[0],
-          selectedPlan: cleanEmail === "thzcreterz05@gmail.com" ? "enterprise" : "pro",
+          name: cleanEmail.split("@")[0],
+          selectedPlan: (cleanEmail === "thzcreterz05@gmail.com" || cleanEmail === "sde7mayim@gmail.com") ? "enterprise" : "pro",
         }),
       }).catch(() => {});
 

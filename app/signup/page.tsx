@@ -31,12 +31,28 @@ function SignupForm() {
 
     try {
       const supabase = createClient();
+
+      // Clear any prior lingering session if different from the registering email
+      try {
+        const { data: currentSession } = await supabase.auth.getUser();
+        if (currentSession?.user?.email && currentSession.user.email.toLowerCase().trim() !== cleanEmail) {
+          await supabase.auth.signOut().catch(() => {});
+        }
+      } catch {}
+
+      // Remember the newly registered account immediately
+      SavedAccountManager.saveAccount({
+        email: cleanEmail,
+        name: name || cleanEmail.split("@")[0],
+        provider: "email",
+      });
+
       const { error: authError } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
         options: {
           data: {
-            full_name: name,
+            full_name: name || cleanEmail.split("@")[0],
             selected_plan: plan,
           },
           emailRedirectTo: `${window.location.origin}/auth/callback?next=/app`,
@@ -46,13 +62,6 @@ function SignupForm() {
       if (authError && !authError.message.includes("fetch") && !authError.message.includes("placeholder")) {
         console.warn("[Auth] Supabase signUp note:", authError.message);
       }
-
-      // Remember the newly registered account immediately
-      SavedAccountManager.saveAccount({
-        email: cleanEmail,
-        name,
-        provider: "email",
-      });
 
       // Dispatch welcome & registration confirmation email
       await fetch("/api/auth/notify-email", {

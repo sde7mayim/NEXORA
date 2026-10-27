@@ -180,16 +180,17 @@ export default function ChatWorkspacePage() {
     let isMounted = true;
 
     async function syncUserConversations() {
-      let activeEmail = "guest";
       const remembered = SavedAccountManager.getRememberedAccount();
-      if (remembered?.email) {
-        activeEmail = remembered.email.toLowerCase().trim();
-      }
+      let activeEmail = remembered?.email ? remembered.email.toLowerCase().trim() : "guest";
+
       try {
         const supabase = createClient();
         const { data } = await supabase.auth.getUser();
         if (data.user?.email) {
-          activeEmail = data.user.email.toLowerCase().trim();
+          const supaEmail = data.user.email.toLowerCase().trim();
+          if (!remembered?.email || remembered.email.toLowerCase().trim() === supaEmail) {
+            activeEmail = supaEmail;
+          }
         }
       } catch {}
 
@@ -212,10 +213,13 @@ export default function ChatWorkspacePage() {
     try {
       const supabase = createClient();
       const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-        const newEmail =
-          session?.user?.email?.toLowerCase().trim() ||
-          SavedAccountManager.getRememberedAccount()?.email ||
-          "guest";
+        const remembered = SavedAccountManager.getRememberedAccount();
+        const activeRememberedEmail = remembered?.email ? remembered.email.toLowerCase().trim() : null;
+        const sessionEmail = session?.user?.email?.toLowerCase().trim();
+
+        // If user explicitly signed into an account, use that account
+        const newEmail = activeRememberedEmail || sessionEmail || "guest";
+
         if (isMounted) {
           setCurrentUserEmail(newEmail);
           const list = ConversationStore.getConversations(newEmail);

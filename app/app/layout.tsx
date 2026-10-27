@@ -47,14 +47,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [userEmail, setUserEmail] = useState<string>("");
   const [avatarInitial, setAvatarInitial] = useState<string>("U");
 
-  const isOwner = userEmail.toLowerCase().trim() === "thzcreterz05@gmail.com";
+  const isOwner =
+    userEmail.toLowerCase().trim() === "thzcreterz05@gmail.com" ||
+    userEmail.toLowerCase().trim() === "sde7mayim@gmail.com";
 
   useEffect(() => {
     const loadProfile = async () => {
       const applyIdentity = (email: string, rawName?: string) => {
         const clean = email.toLowerCase().trim();
-        const isOwnerAccount = clean === "thzcreterz05@gmail.com";
-        const finalName = isOwnerAccount ? "Joshua Suriyan N" : (rawName || clean.split("@")[0]);
+        const isOwnerAccount = clean === "thzcreterz05@gmail.com" || clean === "sde7mayim@gmail.com";
+        const finalName = rawName || clean.split("@")[0];
         setUserEmail(clean);
         setUserName(finalName);
         setAvatarInitial(finalName[0].toUpperCase());
@@ -65,25 +67,38 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       // 1. Immediately read remembered account from storage
       const remembered = SavedAccountManager.getRememberedAccount();
-      if (remembered?.email) {
-        applyIdentity(remembered.email, remembered.name);
+      const activeLoginEmail = remembered?.email ? remembered.email.toLowerCase().trim() : null;
+
+      if (activeLoginEmail) {
+        applyIdentity(activeLoginEmail, remembered?.name);
       }
 
       // 2. Cross-reference with Supabase active session
       try {
         const supabase = createClient();
         const { data } = await supabase.auth.getUser();
-        if (data.user?.email) {
-          const name = data.user.user_metadata?.full_name || data.user.email.split("@")[0];
-          applyIdentity(data.user.email, name);
-          SavedAccountManager.saveAccount({ email: data.user.email, name });
-        } else if (!remembered?.email) {
+        const supaEmail = data.user?.email ? data.user.email.toLowerCase().trim() : null;
+
+        if (activeLoginEmail) {
+          // If Supabase has an old lingering session from a previous different account, sign it out
+          if (supaEmail && supaEmail !== activeLoginEmail) {
+            console.log(`[Auth] Stale Supabase session (${supaEmail}) differs from active user (${activeLoginEmail}). Signing out.`);
+            await supabase.auth.signOut().catch(() => {});
+          }
+          applyIdentity(activeLoginEmail, remembered?.name);
+        } else if (supaEmail) {
+          const name = data.user?.user_metadata?.full_name || supaEmail.split("@")[0];
+          applyIdentity(supaEmail, name);
+          SavedAccountManager.saveAccount({ email: supaEmail, name });
+        } else {
           setUserEmail("guest@nexora.ai");
           setUserName("Nexora User");
           setAvatarInitial("N");
         }
       } catch {
-        if (!remembered?.email) {
+        if (activeLoginEmail) {
+          applyIdentity(activeLoginEmail, remembered?.name);
+        } else {
           setUserEmail("guest@nexora.ai");
           setUserName("Nexora User");
           setAvatarInitial("N");
