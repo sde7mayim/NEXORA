@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import {
@@ -28,31 +29,35 @@ export default function LandingPage() {
         {/* ================================================================== */}
         {/* HERO SECTION                                                       */}
         {/* ================================================================== */}
-        <section className="relative overflow-hidden pt-24 pb-20 md:pt-32 md:pb-28 border-b border-white/5">
+        <section className="relative overflow-hidden pt-24 pb-20 md:pt-32 md:pb-28 border-b border-white/5 bg-slate-950">
+          {/* Official Nexora Hero Background Image */}
+          <div
+            className="absolute inset-0 bg-cover bg-right-bottom opacity-75 pointer-events-none mix-blend-screen"
+            style={{ backgroundImage: "url('/hero-bg.jpg')" }}
+          />
           {/* Subtle Ambient Background Gradients */}
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-gradient-to-tr from-indigo-600/20 via-violet-600/20 to-purple-800/10 blur-[120px] rounded-full pointer-events-none" />
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[380px] bg-gradient-to-tr from-blue-600/20 via-indigo-600/20 to-purple-800/10 blur-[130px] rounded-full pointer-events-none" />
 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
             {/* Pill Badge */}
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-card text-xs font-medium text-indigo-300 border border-indigo-500/20 mb-6">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
               <span>Next-Generation Multi-Model SaaS</span>
               <span className="text-zinc-500">•</span>
-              <span className="text-zinc-400">OpenAI & Anthropic Unified</span>
+              <span className="text-zinc-400">OpenAI, Anthropic & Gemini Unified</span>
             </div>
 
-            {/* Headline */}
+            {/* Headline matching official NEXORA brand design */}
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white max-w-4xl mx-auto leading-[1.1]">
-              One workspace. <br />
-              <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-400 bg-clip-text text-transparent">
-                Many intelligences.
+              Smarter AI. <br />
+              <span className="bg-gradient-to-r from-sky-400 via-blue-500 to-purple-500 bg-clip-text text-transparent">
+                Greater possibilities.
               </span>
             </h1>
 
             {/* Subheading */}
-            <p className="mt-6 text-lg sm:text-xl text-zinc-400 max-w-2xl mx-auto font-normal leading-relaxed">
-              Stop juggling separate AI subscriptions and fragmented windows. Nexora brings leading foundation
-              models, private document reasoning, and source-grounded web research into a single, secure workspace.
+            <p className="mt-5 text-lg sm:text-2xl text-zinc-300 font-medium max-w-2xl mx-auto">
+              One workspace. Many intelligences.
             </p>
 
             {/* CTAs */}
@@ -105,8 +110,8 @@ export default function LandingPage() {
                   </div>
 
                   <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-xs text-white">
-                      <Sparkles className="w-4 h-4" />
+                    <div className="w-8 h-8 rounded-lg bg-slate-900 border border-white/10 flex items-center justify-center p-1 shadow-md">
+                      <Image src="/logo.png" alt="Nexora" width={24} height={24} className="object-contain" />
                     </div>
                     <div className="rounded-xl glass-card p-4 text-sm text-zinc-200 max-w-2xl space-y-3 border border-indigo-500/20">
                       <div className="flex items-center gap-2 text-xs text-indigo-400 font-medium">

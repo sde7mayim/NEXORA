@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import {
   Sparkles,
   Send,
@@ -804,8 +805,8 @@ export default function ChatWorkspacePage() {
           <div className="max-w-3xl mx-auto space-y-6">
             {messages.length === 0 ? (
               <div className="text-center py-24 space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 mx-auto flex items-center justify-center shadow-lg">
-                  <Sparkles className="w-6 h-6" />
+                <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-white/10 mx-auto flex items-center justify-center shadow-xl p-2.5 drop-shadow-[0_4px_16px_rgba(59,130,246,0.35)]">
+                  <Image src="/logo.png" alt="Nexora" width={36} height={36} className="object-contain" priority />
                 </div>
                 <h3 className="text-lg font-bold text-white">Start a New Multi-Model Chat</h3>
                 <p className="text-xs text-zinc-400 max-w-sm mx-auto">
@@ -819,10 +820,14 @@ export default function ChatWorkspacePage() {
                     className={`w-7 h-7 rounded-lg shrink-0 flex items-center justify-center text-xs font-bold ${
                       msg.role === "user"
                         ? "bg-zinc-800 text-zinc-200"
-                        : "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+                        : "bg-slate-900 border border-white/10 p-1 shadow-md shadow-indigo-600/20"
                     }`}
                   >
-                    {msg.role === "user" ? "U" : <Sparkles className="w-3.5 h-3.5" />}
+                    {msg.role === "user" ? (
+                      "U"
+                    ) : (
+                      <Image src="/logo.png" alt="Nexora" width={18} height={18} className="object-contain" />
+                    )}
                   </div>
 
                   <div className="flex-1 space-y-2">

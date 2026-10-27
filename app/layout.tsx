@@ -6,6 +6,14 @@ export const metadata: Metadata = {
   title: `${APP_NAME} — ${APP_TAGLINE}`,
   description:
     "Nexora is a secure, enterprise-grade multi-model AI SaaS platform uniting OpenAI, Anthropic, and intelligent routing into a single workspace.",
+  icons: {
+    icon: [
+      { url: "/favicon.png", type: "image/png" },
+      { url: "/logo.png", type: "image/png" },
+    ],
+    shortcut: "/favicon.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Sparkles, Shield, Cpu, Github } from "lucide-react";
 import { getAppVersionDisplay, APP_TAGLINE } from "@/lib/version";
 
+import { NexoraLogo } from "@/components/nexora-logo";
+
 export function Footer() {
   const versionDisplay = getAppVersionDisplay();
 
@@ -11,11 +13,8 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-12">
           {/* Brand Column */}
           <div className="md:col-span-2 space-y-3">
-            <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <span className="font-bold text-lg text-white">Nexora</span>
+            <Link href="/" className="inline-block group hover:opacity-90 transition-opacity">
+              <NexoraLogo size="md" />
             </Link>
             <p className="text-sm text-zinc-400 max-w-sm">{APP_TAGLINE}</p>
             <p className="text-xs text-zinc-500">

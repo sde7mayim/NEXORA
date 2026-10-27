@@ -29,6 +29,7 @@ import {
 import { getAppVersionDisplay } from "@/lib/version";
 import { createClient } from "@/lib/supabase/client";
 import { SavedAccountManager } from "@/lib/auth/saved-accounts";
+import { NexoraLogo } from "@/components/nexora-logo";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -122,11 +123,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {/* Brand & Workspace Switcher */}
           <div className="space-y-2 pb-3 border-b border-white/5">
             <div className="flex items-center justify-between">
-              <Link href="/" className="flex items-center gap-2 group">
-                <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-600/30">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <span className="font-bold text-base text-white">Nexora</span>
+              <Link href="/" className="flex items-center gap-2 group hover:opacity-90 transition-opacity">
+                <NexoraLogo size="sm" />
               </Link>
               <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                 {userPlan}
@@ -253,11 +251,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Mobile Header Bar */}
         <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-white/5 bg-slate-950">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
-              <Sparkles className="w-3.5 h-3.5" />
-            </div>
-            <span className="font-bold text-sm text-white">Nexora</span>
+          <Link href="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+            <NexoraLogo size="xs" />
           </Link>
           <div className="flex items-center gap-3">
             <Link

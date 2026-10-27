@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { Sparkles, Menu, X, ArrowRight } from "lucide-react";
 
+import { NexoraLogo } from "@/components/nexora-logo";
+
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -11,16 +13,8 @@ export function Navbar() {
     <header className="sticky top-0 z-50 glass-panel border-b border-white/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25 group-hover:scale-105 transition-transform">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div className="flex flex-col">
-            <span className="font-bold text-xl tracking-tight text-white">Nexora</span>
-            <span className="text-[10px] text-zinc-400 font-medium -mt-1 tracking-wider uppercase">
-              Multi-Model AI
-            </span>
-          </div>
+        <Link href="/" className="flex items-center gap-2 group hover:opacity-90 transition-opacity">
+          <NexoraLogo size="md" />
         </Link>
 
         {/* Desktop Nav Links */}
