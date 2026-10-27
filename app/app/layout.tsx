@@ -175,7 +175,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <Link
             href="/app"
             title="New Conversation"
-            className="w-full py-3 px-3.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/25 transition-all hover:scale-[1.01]"
+            className="shimmer-btn w-full py-3 px-3.5 rounded-xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             <Plus className="w-4 h-4 shrink-0" />
             {!sidebarCollapsed && <span>New Conversation</span>}
@@ -193,9 +193,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   title={item.name}
                   className={`flex items-center ${
                     sidebarCollapsed ? "justify-center px-2 py-2.5" : "justify-between px-3 py-2.5"
-                  } rounded-xl font-medium transition-colors ${
+                  } rounded-xl font-medium transition-all duration-150 ${
                     active
-                      ? "bg-white/10 text-white font-semibold shadow-sm"
+                      ? "bg-indigo-600/15 text-white font-semibold shadow-sm border border-indigo-500/30"
                       : "text-zinc-400 hover:text-white hover:bg-white/5"
                   }`}
                 >

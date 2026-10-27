@@ -64,14 +64,14 @@ export default function LandingPage() {
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
                 href="/signup"
-                className="w-full sm:w-auto px-8 py-3.5 rounded-xl text-base font-semibold bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:from-indigo-600 hover:to-violet-700 shadow-xl shadow-indigo-500/25 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+                className="shimmer-btn w-full sm:w-auto px-8 py-3.5 rounded-xl text-base font-semibold bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 text-white hover:from-indigo-600 hover:to-violet-700 shadow-xl shadow-indigo-500/25 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
               >
                 Start for Free
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
                 href="/features"
-                className="w-full sm:w-auto px-8 py-3.5 rounded-xl text-base font-medium glass-card text-zinc-200 hover:text-white hover:bg-white/5 border border-white/10 transition-colors flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-8 py-3.5 rounded-xl text-base font-medium glass-card text-zinc-200 hover:text-white hover:bg-white/10 border border-white/10 transition-all hover:scale-[1.01] flex items-center justify-center gap-2"
               >
                 Explore Features
               </Link>
@@ -152,10 +152,10 @@ export default function LandingPage() {
             {NEXORA_MODEL_FAMILIES.map((family) => (
               <div
                 key={family.id}
-                className="rounded-2xl glass-card p-6 flex flex-col justify-between hover:border-indigo-500/40 transition-colors group"
+                className="interactive-card rounded-2xl glass-card p-6 flex flex-col justify-between hover:border-indigo-500/40 transition-all group"
               >
                 <div>
-                  <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-4 group-hover:scale-105 transition-transform">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-4 group-hover:scale-110 transition-transform">
                     {family.slug === "nexora-swift" && <Zap className="w-5 h-5" />}
                     {family.slug === "nexora-core" && <Cpu className="w-5 h-5" />}
                     {family.slug === "nexora-reason" && <Layers className="w-5 h-5" />}
@@ -180,7 +180,7 @@ export default function LandingPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {/* Feature 1 */}
-              <div className="rounded-2xl glass-card p-8 border border-white/5 space-y-4">
+              <div className="interactive-card rounded-2xl glass-card p-8 border border-white/5 space-y-4">
                 <div className="w-12 h-12 rounded-xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400">
                   <FileText className="w-6 h-6" />
                 </div>
@@ -194,7 +194,7 @@ export default function LandingPage() {
               </div>
 
               {/* Feature 2 */}
-              <div className="rounded-2xl glass-card p-8 border border-white/5 space-y-4">
+              <div className="interactive-card rounded-2xl glass-card p-8 border border-white/5 space-y-4">
                 <div className="w-12 h-12 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
                   <Search className="w-6 h-6" />
                 </div>
@@ -208,7 +208,7 @@ export default function LandingPage() {
               </div>
 
               {/* Feature 3 */}
-              <div className="rounded-2xl glass-card p-8 border border-white/5 space-y-4">
+              <div className="interactive-card rounded-2xl glass-card p-8 border border-white/5 space-y-4">
                 <div className="w-12 h-12 rounded-xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
                   <Shield className="w-6 h-6" />
                 </div>

@@ -29,6 +29,9 @@ import {
   Download,
   Lightbulb,
   BookOpen,
+  Zap,
+  ArrowUpRight,
+  Shield,
 } from "lucide-react";
 import { NEXORA_MODEL_FAMILIES, EXTERNAL_MODELS } from "@/lib/ai/model-registry";
 import { ConversationStore, Conversation, ConversationMessage } from "@/lib/chat/conversation-store";
@@ -101,6 +104,46 @@ const AVAILABLE_ACTION_MODELS = [
     desc: "Flagship multimodal intelligence for high-complexity analysis.",
     color: "text-emerald-300 bg-emerald-500/10 border-emerald-500/30",
     version: "Omni",
+  },
+];
+
+const STARTER_PROMPTS = [
+  {
+    icon: Sparkles,
+    category: "Architecture & Code",
+    title: "Multi-Model Comparison",
+    description: "Compare OpenAI GPT-4o vs Claude 3.5 Sonnet for enterprise system design & API refactoring.",
+    prompt: "Compare OpenAI GPT-4o vs Claude 3.5 Sonnet for enterprise system design & API refactoring. Detail their strengths in latency, reasoning depth, and context limits.",
+    gradient: "from-blue-500/10 via-indigo-500/10 to-violet-500/5 hover:border-indigo-500/40",
+    iconColor: "text-indigo-400",
+  },
+  {
+    icon: Search,
+    category: "Live Web Research",
+    title: "Market & Tech Breakthroughs",
+    description: "Search live verified web citations on the latest multi-agent framework architectures.",
+    prompt: "Search the web for the latest advancements and production benchmarks in multi-agent AI systems in 2026. Provide verified citations.",
+    gradient: "from-emerald-500/10 via-teal-500/10 to-cyan-500/5 hover:border-emerald-500/40",
+    iconColor: "text-emerald-400",
+    enableWeb: true,
+  },
+  {
+    icon: FileText,
+    category: "Document Intelligence",
+    title: "Executive Synthesis & QA",
+    description: "Synthesize complex business disclosures or research documents into high-signal takeaways.",
+    prompt: "Draft a high-impact executive briefing comparing cloud infrastructure unit economics, GPU cluster utilization, and inference cost optimizations.",
+    gradient: "from-amber-500/10 via-orange-500/10 to-rose-500/5 hover:border-amber-500/40",
+    iconColor: "text-amber-400",
+  },
+  {
+    icon: Zap,
+    category: "Full-Stack Engineering",
+    title: "Fault-Tolerant API Architecture",
+    description: "Generate production TypeScript handlers with circuit breakers, retries, and schema validation.",
+    prompt: "Generate a production-grade TypeScript API handler in Next.js 14 featuring a resilient circuit breaker, exponential backoff retries, and strict Zod runtime schema validation.",
+    gradient: "from-purple-500/10 via-pink-500/10 to-indigo-500/5 hover:border-purple-500/40",
+    iconColor: "text-purple-400",
   },
 ];
 
@@ -708,28 +751,33 @@ export default function ChatWorkspacePage() {
       {sidebarOpen ? (
         <aside className="w-64 border-r border-white/5 bg-slate-950/90 flex flex-col justify-between p-3 shrink-0">
           <div className="space-y-3">
-            {/* Drawer Header & Collapse Button */}
-            <div className="flex items-center justify-between pb-2 border-b border-white/5">
-              <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
-                Chat History
-              </span>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="p-1 text-zinc-400 hover:text-white rounded hover:bg-white/5"
-                title="Collapse sidebar"
-              >
-                <PanelLeftClose className="w-4 h-4" />
-              </button>
+            {/* Drawer Header with + New Chat Action & Collapse Button */}
+            <div className="flex items-center justify-between pb-2.5 border-b border-white/5">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
+                  Chats
+                </span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/5 text-zinc-400 border border-white/5">
+                  {conversations.length}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleNewConversation}
+                  className="p-1.5 text-zinc-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors flex items-center gap-1 text-xs font-medium"
+                  title="Start new conversation"
+                >
+                  <Plus className="w-4 h-4 text-indigo-400" />
+                </button>
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
+                  title="Collapse history drawer"
+                >
+                  <PanelLeftClose className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-
-            {/* New Conversation Button */}
-            <button
-              onClick={handleNewConversation}
-              className="w-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/20 transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New Conversation</span>
-            </button>
 
             {/* Search Filter */}
             <div className="relative">
@@ -929,31 +977,72 @@ export default function ChatWorkspacePage() {
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           <div className="max-w-3xl mx-auto space-y-6">
             {messages.length === 0 ? (
-              <div className="text-center py-24 space-y-3">
-                <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-white/10 mx-auto flex items-center justify-center shadow-xl p-2.5 drop-shadow-[0_4px_16px_rgba(59,130,246,0.35)]">
-                  <Image src="/nexora-logo.png?v=3" alt="Nexora" width={36} height={36} className="object-contain" priority unoptimized />
+              <div className="text-center py-16 space-y-6">
+                <div className="relative inline-block">
+                  <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-white/10 mx-auto flex items-center justify-center shadow-2xl p-3 glow-accent">
+                    <Image src="/nexora-logo.png?v=3" alt="Nexora" width={42} height={42} className="object-contain" priority unoptimized />
+                  </div>
+                  <div className="absolute -inset-1 rounded-3xl bg-indigo-500/20 blur-xl -z-10 animate-pulse" />
                 </div>
-                <h3 className="text-lg font-bold text-white">Start a New Multi-Model Chat</h3>
-                <p className="text-xs text-zinc-400 max-w-sm mx-auto">
-                  Type your prompt below, toggle live web research, or attach files for document reasoning.
-                </p>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-bold text-white tracking-tight">
+                    What can we build or research today?
+                  </h3>
+                  <p className="text-sm text-zinc-400 max-w-md mx-auto">
+                    Select a curated starter workflow below or type your prompt to begin multi-model reasoning.
+                  </p>
+                </div>
+
+                {/* Starter Prompts Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left pt-2">
+                  {STARTER_PROMPTS.map((p, idx) => {
+                    const Icon = p.icon;
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setInput(p.prompt);
+                          if (p.enableWeb) setIncludeWebSearch(true);
+                        }}
+                        className={`group p-4 rounded-2xl glass-card bg-gradient-to-br ${p.gradient} border border-white/10 hover:border-white/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl text-left flex flex-col justify-between`}
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-white/5 text-zinc-400 border border-white/5">
+                              {p.category}
+                            </span>
+                            <ArrowUpRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors" />
+                          </div>
+                          <h4 className="text-sm font-semibold text-white group-hover:text-indigo-300 transition-colors flex items-center gap-2">
+                            <Icon className={`w-4 h-4 ${p.iconColor}`} />
+                            <span>{p.title}</span>
+                          </h4>
+                          <p className="text-xs text-zinc-400 leading-relaxed line-clamp-2">
+                            {p.description}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             ) : (
-              messages.map((msg) => (
-                <div key={msg.id} className="flex gap-3 group">
-                  <div
-                    className={`w-8 h-8 rounded-xl shrink-0 flex items-center justify-center text-sm font-bold ${
-                      msg.role === "user"
-                        ? "bg-zinc-800 text-zinc-100"
-                        : "bg-slate-900 border border-white/10 p-1.5 shadow-md shadow-indigo-600/20"
-                    }`}
-                  >
-                    {msg.role === "user" ? (
-                      "U"
-                    ) : (
-                      <Image src="/nexora-logo.png?v=3" alt="Nexora" width={22} height={22} className="object-contain" unoptimized />
-                    )}
-                  </div>
+              <>
+                {messages.map((msg) => (
+                  <div key={msg.id} className="flex gap-3.5 group animate-in fade-in duration-200">
+                    <div
+                      className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center text-sm font-bold shadow-md ${
+                        msg.role === "user"
+                          ? "bg-gradient-to-br from-zinc-700 to-zinc-900 text-zinc-100 border border-white/10"
+                          : "bg-slate-900 border border-indigo-500/30 p-1.5 shadow-indigo-600/20"
+                      }`}
+                    >
+                      {msg.role === "user" ? (
+                        "U"
+                      ) : (
+                        <Image src="/nexora-logo.png?v=3" alt="Nexora" width={24} height={24} className="object-contain" unoptimized />
+                      )}
+                    </div>
 
                   <div className="flex-1 space-y-2.5">
                     <div className="flex items-center justify-between">
@@ -1185,8 +1274,49 @@ export default function ChatWorkspacePage() {
                     )}
                   </div>
                 </div>
-              ))
-            )}
+              ))}
+
+              {messages.length === 1 && messages[0].role === "assistant" && (
+                <div className="pt-4 space-y-3.5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-indigo-400">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Suggested Starter Workflows</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+                    {STARTER_PROMPTS.map((p, idx) => {
+                      const Icon = p.icon;
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setInput(p.prompt);
+                            if (p.enableWeb) setIncludeWebSearch(true);
+                          }}
+                          className={`group p-4 rounded-2xl glass-card bg-gradient-to-br ${p.gradient} border border-white/10 hover:border-white/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl text-left flex flex-col justify-between`}
+                        >
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-white/5 text-zinc-400 border border-white/5">
+                                {p.category}
+                              </span>
+                              <ArrowUpRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors" />
+                            </div>
+                            <h4 className="text-sm font-semibold text-white group-hover:text-indigo-300 transition-colors flex items-center gap-2">
+                              <Icon className={`w-4 h-4 ${p.iconColor}`} />
+                              <span>{p.title}</span>
+                            </h4>
+                            <p className="text-xs text-zinc-400 leading-relaxed line-clamp-2">
+                              {p.description}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
             <div ref={messagesEndRef} />
           </div>
         </div>
@@ -1279,12 +1409,32 @@ export default function ChatWorkspacePage() {
                 <button
                   onClick={() => handleSendMessage()}
                   disabled={!input.trim() && attachments.length === 0}
-                  className="p-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 disabled:opacity-40 disabled:hover:from-indigo-500 disabled:hover:to-violet-600 text-white shadow-md shadow-indigo-600/20 transition-all shrink-0"
+                  className="p-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 disabled:opacity-40 disabled:hover:from-indigo-500 disabled:hover:to-violet-600 text-white shadow-md shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95 shrink-0"
                   title="Send message"
                 >
                   <Send className="w-5 h-5" />
                 </button>
               )}
+            </div>
+
+            {/* Helper status & keyboard shortcut bar */}
+            <div className="flex items-center justify-between px-2 pt-1 text-[11px] text-zinc-500">
+              <div className="flex items-center gap-3">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-zinc-400 font-medium">{selectedModel.replace("nexora-", "Nexora ").replace("openai:", "OpenAI ").replace("anthropic:", "Anthropic ")}</span>
+                </span>
+                {includeWebSearch && (
+                  <span className="flex items-center gap-1 text-emerald-400 font-medium">
+                    <Search className="w-3 h-3" />
+                    <span>Web Research Enabled</span>
+                  </span>
+                )}
+              </div>
+              <div className="hidden sm:flex items-center gap-2 text-zinc-500 font-mono text-[10px]">
+                <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10">↵ Send</span>
+                <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10">Shift + ↵ Newline</span>
+              </div>
             </div>
           </div>
         </div>
