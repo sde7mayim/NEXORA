@@ -30,28 +30,34 @@ import {
   DemoExample,
   getLastViewedDemoId,
 } from "@/lib/demo/homepage-demos";
+import {
+  getDemoForCurrentTab,
+  registerTabLease,
+  getTabSessionId,
+} from "@/lib/demo/cross-tab-coordinator";
 
 export default function LandingPage() {
   const [currentDemo, setCurrentDemo] = useState<DemoExample>(HOMEPAGE_DEMOS[0]);
   const [isRotating, setIsRotating] = useState(false);
 
   useEffect(() => {
-    const lastId = getLastViewedDemoId();
-    if (lastId) {
-      const next = getNextDemoExample(lastId);
-      setCurrentDemo(next);
-    } else {
-      try {
-        sessionStorage.setItem("nexora_last_demo_id", HOMEPAGE_DEMOS[0].id);
-      } catch {}
-    }
+    // Coordinated cross-tab demo selection:
+    // Genuinely new browser tabs coordinate via localStorage lease ledger to pick a unique demo.
+    // Page refreshes in the same tab maintain stable continuity.
+    const selected = getDemoForCurrentTab();
+    setCurrentDemo(selected);
   }, []);
 
   const handleTryAnotherDemo = () => {
     setIsRotating(true);
-    const next = getNextDemoExample(currentDemo.id);
+    const next = getDemoForCurrentTab({ forceRotate: true });
     setCurrentDemo(next);
     setTimeout(() => setIsRotating(false), 350);
+  };
+
+  const handleSelectDemo = (demo: DemoExample) => {
+    setCurrentDemo(demo);
+    registerTabLease(getTabSessionId(), demo.id);
   };
 
   const DEMO_REACT_CODE = currentDemo.code;
@@ -171,6 +177,11 @@ export default function LandingPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>Autonomous Demo Mode</span>
+                    </div>
+
                     <button
                       onClick={handleTryAnotherDemo}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-indigo-600/30 to-violet-600/30 hover:from-indigo-600/50 hover:to-violet-600/50 text-indigo-200 border border-indigo-500/40 shadow-sm transition-all active:scale-95"
@@ -192,7 +203,7 @@ export default function LandingPage() {
                     return (
                       <button
                         key={demo.id}
-                        onClick={() => setCurrentDemo(demo)}
+                        onClick={() => handleSelectDemo(demo)}
                         className={`px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
                           isSelected
                             ? "bg-indigo-600 text-white shadow-sm font-semibold"

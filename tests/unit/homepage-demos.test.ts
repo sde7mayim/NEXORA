@@ -106,3 +106,4 @@ describe("Dynamic Homepage Code Demos Architecture", () => {
     expect(content).toContain("HOMEPAGE_DEMOS");
   });
 });
+
