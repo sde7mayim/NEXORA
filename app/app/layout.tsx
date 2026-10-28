@@ -106,7 +106,36 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       }
     };
     loadProfile();
+
+    // Auto-collapse sidebar on tablet viewports (768px - 1023px) to prevent screen squeezing
+    const handleResize = () => {
+      if (typeof window !== "undefined") {
+        if (window.innerWidth >= 768 && window.innerWidth < 1024) {
+          setSidebarCollapsed(true);
+        }
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // Lock body scroll and listen for Escape key when mobile drawer is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden";
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") setMobileOpen(false);
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.body.style.overflow = "";
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    } else {
+      document.body.style.overflow = "";
+    }
+  }, [mobileOpen]);
 
   const handleSignOut = async () => {
     try {
@@ -250,29 +279,31 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* MOBILE DRAWER & HEADER                                               */}
       {/* ==================================================================== */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Mobile Header Bar */}
-        <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-white/5 bg-slate-950/90 backdrop-blur-md z-30 shrink-0">
-          <Link href="/app" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
-            <NexoraLogo size="xs" />
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/app"
-              className="px-2.5 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold flex items-center gap-1 shadow-sm active:scale-95 transition-all"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>New</span>
+        {/* Mobile Header Bar - Rendered on subpages. /app provides its own unified mobile topbar */}
+        {pathname !== "/app" && (
+          <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-white/10 glass-topbar z-30 shrink-0">
+            <Link href="/app" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+              <NexoraLogo size="xs" />
             </Link>
-            <button
-              onClick={() => setMobileOpen(!mobileOpen)}
-              aria-expanded={mobileOpen}
-              aria-label="Toggle navigation menu"
-              className="p-2 text-zinc-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
-            >
-              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-          </div>
-        </header>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/app"
+                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-indigo-600/20 active:scale-95 transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>New</span>
+              </Link>
+              <button
+                onClick={() => setMobileOpen(!mobileOpen)}
+                aria-expanded={mobileOpen}
+                aria-label="Toggle navigation menu"
+                className="p-2 text-zinc-300 hover:text-white rounded-xl hover:bg-white/10 transition-colors"
+              >
+                {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
+            </div>
+          </header>
+        )}
 
         {/* Accessible Mobile Drawer Overlay */}
         {mobileOpen && (
@@ -280,12 +311,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {/* Backdrop */}
             <div
               onClick={() => setMobileOpen(false)}
-              className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+              className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
               aria-hidden="true"
             />
 
             {/* Slide-over Drawer Panel */}
-            <div className="relative w-72 max-w-[80vw] bg-slate-950 border-r border-white/10 p-4 flex flex-col justify-between shadow-2xl z-50 overflow-y-auto">
+            <div className="relative w-72 max-w-[82vw] glass-drawer border-r border-white/10 p-4 flex flex-col justify-between shadow-2xl z-50 overflow-y-auto animate-in slide-in-from-left duration-250">
               <div className="space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-white/5">
                   <NexoraLogo size="sm" />

@@ -14,7 +14,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   const parts = content.split(/(```[\s\S]*?```)/g);
 
   return (
-    <div className="space-y-4 text-chat-body text-zinc-100 leading-relaxed break-words font-sans selection:bg-indigo-500/30">
+    <div className="space-y-4 text-chat-body text-zinc-100 leading-relaxed break-words [overflow-wrap:anywhere] font-sans selection:bg-indigo-500/30 min-w-0 max-w-full">
       {parts.map((part, index) => {
         if (part.startsWith("```") && part.endsWith("```")) {
           // Extract language and code content
@@ -42,34 +42,34 @@ function CodeBlock({ code, language }: { code: string; language: string }) {
   };
 
   return (
-    <div className="rounded-2xl overflow-hidden border border-white/10 bg-slate-950 my-4 shadow-xl">
+    <div className="rounded-2xl overflow-hidden border border-white/10 bg-slate-950 my-4 shadow-xl min-w-0 max-w-full">
       <div className="px-4 py-3 bg-slate-900 border-b border-white/5 flex items-center justify-between text-sm text-zinc-300">
-        <div className="flex items-center gap-2">
-          <Terminal className="w-4 h-4 text-indigo-400" />
-          <span className="font-mono uppercase text-sm tracking-wider text-zinc-200 font-bold">
+        <div className="flex items-center gap-2 min-w-0">
+          <Terminal className="w-4 h-4 text-indigo-400 shrink-0" />
+          <span className="font-mono uppercase text-sm tracking-wider text-zinc-200 font-bold truncate">
             {language}
           </span>
         </div>
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white transition-colors px-2 py-1 rounded-lg hover:bg-white/5"
+          className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white transition-colors px-2 py-1 rounded-lg hover:bg-white/5 shrink-0"
           title="Copy code"
         >
           {copied ? (
             <>
-              <Check className="w-4 h-4 text-emerald-400" />
+              <Check className="w-4 h-4 text-emerald-400 shrink-0" />
               <span className="text-emerald-400 font-medium">Copied!</span>
             </>
           ) : (
             <>
-              <Copy className="w-4 h-4" />
+              <Copy className="w-4 h-4 shrink-0" />
               <span>Copy</span>
             </>
           )}
         </button>
       </div>
-      <div className="p-4 md:p-5 overflow-x-auto font-mono text-[15px] text-zinc-200 leading-relaxed">
-        <pre>{code}</pre>
+      <div className="p-4 md:p-5 overflow-x-auto font-mono text-[15px] text-zinc-200 leading-relaxed max-w-full overscroll-x-contain">
+        <pre className="overflow-x-auto whitespace-pre font-mono">{code}</pre>
       </div>
     </div>
   );
@@ -97,7 +97,7 @@ function TableBlock({ lines }: { lines: string[] }) {
   const rows = validLines.slice(bodyStartIndex).filter((l) => !isSeparator(l)).map(parseCells);
 
   return (
-    <div className="my-5 overflow-x-auto rounded-xl border border-white/10 bg-zinc-950/70 shadow-md">
+    <div className="my-5 overflow-x-auto rounded-xl border border-white/10 bg-zinc-950/70 shadow-md min-w-0 max-w-full overscroll-x-contain">
       <table className="w-full border-collapse text-left text-sm md:text-base">
         <thead className="bg-zinc-900 border-b border-white/10 text-zinc-200">
           <tr>
