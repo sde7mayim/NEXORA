@@ -14,29 +14,59 @@ import {
   CheckCircle2,
   Lock,
   ChevronRight,
+  Code2,
 } from "lucide-react";
 import { NEXORA_MODEL_FAMILIES } from "@/lib/ai/model-registry";
 import { PLAN_CONFIGS } from "@/lib/entitlements/types";
 import { formatPrice } from "@/lib/utils";
+import { LiveCodePreview } from "@/components/live-code-preview";
 
+const DEMO_REACT_CODE = `export default function AnalyticsCard() {
+  const [activeTab, setActiveTab] = useState("7d");
+  
+  return (
+    <div className="p-5 rounded-2xl bg-slate-900 border border-white/10 text-white max-w-md mx-auto shadow-2xl space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <span className="text-xs uppercase font-bold tracking-wider text-indigo-400">Total Inference</span>
+          <h3 className="text-2xl font-bold mt-0.5">142,890 tokens</h3>
+        </div>
+        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+          +28.4%
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 pt-1">
+        <div className="p-3 rounded-xl bg-slate-950/80 border border-white/5">
+          <div className="text-[11px] text-zinc-400">Avg. Latency</div>
+          <div className="text-lg font-bold text-white mt-0.5">340ms</div>
+        </div>
+        <div className="p-3 rounded-xl bg-slate-950/80 border border-white/5">
+          <div className="text-[11px] text-zinc-400">Success Rate</div>
+          <div className="text-lg font-bold text-emerald-400 mt-0.5">99.98%</div>
+        </div>
+      </div>
+
+      <div className="pt-2 flex items-center justify-between text-xs text-zinc-400 border-t border-white/5">
+        <span>Model: Nexora Core 1.0</span>
+        <button className="text-indigo-400 hover:text-indigo-300 font-medium">Export Report →</button>
+      </div>
+    </div>
+  );
+}`;
 
 export default function LandingPage() {
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-slate-950 text-slate-100">
       <Navbar />
 
       <main className="flex-1">
         {/* ================================================================== */}
         {/* HERO SECTION                                                       */}
         {/* ================================================================== */}
-        <section className="relative overflow-hidden pt-24 pb-20 md:pt-32 md:pb-28 border-b border-white/5 bg-slate-950">
-          {/* Official Nexora Hero Background Image */}
-          <div
-            className="absolute inset-0 bg-cover bg-right-bottom opacity-75 pointer-events-none mix-blend-screen"
-            style={{ backgroundImage: "url('/hero-bg.jpg')" }}
-          />
-          {/* Subtle Ambient Background Gradients */}
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[380px] bg-gradient-to-tr from-blue-600/20 via-indigo-600/20 to-purple-800/10 blur-[130px] rounded-full pointer-events-none" />
+        <section className="relative overflow-hidden pt-20 pb-16 md:pt-28 md:pb-24 border-b border-white/5 bg-slate-950">
+          {/* Subtle Ambient Background - Reduced glow by >65% */}
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[260px] bg-indigo-950/20 blur-[100px] rounded-full pointer-events-none" />
 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
             {/* Pill Badge */}
@@ -49,24 +79,24 @@ export default function LandingPage() {
 
             {/* Headline matching official NEXORA brand design */}
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white max-w-4xl mx-auto leading-[1.1]">
-              Smarter AI. <br />
-              <span className="bg-gradient-to-r from-sky-400 via-blue-500 to-purple-500 bg-clip-text text-transparent">
-                Greater possibilities.
+              Your AI Workspace, <br />
+              <span className="bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-400 bg-clip-text text-transparent">
+                Reimagined.
               </span>
             </h1>
 
             {/* Subheading */}
-            <p className="mt-5 text-lg sm:text-2xl text-zinc-300 font-medium max-w-2xl mx-auto">
-              One workspace. Many intelligences.
+            <p className="mt-5 text-base sm:text-xl text-zinc-300 font-normal max-w-2xl mx-auto leading-relaxed">
+              One workspace. Many intelligences. Unified access to OpenAI GPT-4o, Claude 3.5 Sonnet, Gemini 1.5, and Nexora Core with live code execution and persistent memory.
             </p>
 
             {/* CTAs */}
-            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
-                href="/signup"
-                className="shimmer-btn w-full sm:w-auto px-8 py-3.5 rounded-xl text-base font-semibold bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 text-white hover:from-indigo-600 hover:to-violet-700 shadow-xl shadow-indigo-500/25 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+                href="/app"
+                className="shimmer-btn w-full sm:w-auto px-8 py-3.5 rounded-xl text-base font-semibold bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 text-white hover:from-indigo-600 hover:to-violet-700 shadow-xl shadow-indigo-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
               >
-                Start for Free
+                Start Chatting
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
@@ -77,13 +107,54 @@ export default function LandingPage() {
               </Link>
             </div>
 
+            {/* Compact Feature Highlights Row */}
+            <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto text-left">
+              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-white/5 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
+                  <Layers className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-white truncate">Multi-Model Studio</div>
+                  <div className="text-[11px] text-zinc-400 truncate">GPT-4o, Claude, Gemini</div>
+                </div>
+              </div>
 
+              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-white/5 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                  <Code2 className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-white truncate">Live Code Sandbox</div>
+                  <div className="text-[11px] text-zinc-400 truncate">Instant UI rendering</div>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-white/5 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400 shrink-0">
+                  <Search className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-white truncate">Web Citations</div>
+                  <div className="text-[11px] text-zinc-400 truncate">Live source grounding</div>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-white/5 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-white truncate">Personal Memory</div>
+                  <div className="text-[11px] text-zinc-400 truncate">Adaptive recall</div>
+                </div>
+              </div>
+            </div>
 
             {/* Interactive Workspace Preview */}
-            <div className="mt-16 max-w-5xl mx-auto rounded-2xl glass-panel p-2 shadow-2xl border border-white/10">
-              <div className="rounded-xl bg-slate-950/90 border border-white/5 overflow-hidden text-left">
+            <div className="mt-14 max-w-5xl mx-auto rounded-2xl glass-panel p-2 shadow-2xl border border-white/10">
+              <div className="rounded-xl bg-slate-950/95 border border-white/5 overflow-hidden text-left">
                 {/* Mock Browser Header */}
-                <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between bg-slate-900/40">
+                <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between bg-slate-900/60">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-rose-500/80" />
                     <div className="w-3 h-3 rounded-full bg-amber-500/80" />
@@ -91,39 +162,34 @@ export default function LandingPage() {
                     <span className="ml-3 text-xs text-zinc-400 font-mono">nexora.workspace/chat</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs px-2.5 py-1 rounded bg-indigo-500/20 text-indigo-300 font-medium">
-                      Nexora Core 1.0 (GPT-4o mini)
+                    <span className="text-xs px-2.5 py-1 rounded bg-indigo-500/20 text-indigo-300 font-medium border border-indigo-500/30">
+                      Nexora Core 1.0 (Live Preview Enabled)
                     </span>
                   </div>
                 </div>
 
                 {/* Mock Workspace Content */}
-                <div className="p-6 space-y-4">
+                <div className="p-4 sm:p-6 space-y-4">
                   <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-300">
+                    <div className="w-8 h-8 rounded-xl bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-300 shrink-0">
                       U
                     </div>
-                    <div className="rounded-xl bg-zinc-900/70 p-3.5 text-sm text-zinc-200 max-w-xl border border-white/5">
-                      Synthesize our uploaded quarterly report (PDF) with current web research on cloud infrastructure trends.
+                    <div className="rounded-xl bg-zinc-900/70 p-3.5 text-sm sm:text-base text-zinc-200 max-w-xl border border-white/5">
+                      Generate an interactive analytics metric card with latency, token rate, and progress badge in React & Tailwind CSS.
                     </div>
                   </div>
 
                   <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-slate-900 border border-white/10 flex items-center justify-center p-1 shadow-md">
-                      <Image src="/nexora-logo.png?v=3" alt="Nexora" width={24} height={24} className="object-contain" unoptimized />
+                    <div className="w-8 h-8 rounded-xl bg-slate-900 border border-white/10 flex items-center justify-center p-1 shadow-md shrink-0">
+                      <Image src="/nexora-logo.png?v=3" alt="Nexora" width={22} height={22} className="object-contain" unoptimized />
                     </div>
-                    <div className="rounded-xl glass-card p-4 text-sm text-zinc-200 max-w-2xl space-y-3 border border-indigo-500/20">
-                      <div className="flex items-center gap-2 text-xs text-indigo-400 font-medium">
-                        <Search className="w-3.5 h-3.5" />
-                        <span>Retrieved 3 real web sources & processed attached PDF</span>
+                    <div className="flex-1 min-w-0 space-y-3">
+                      <div className="rounded-xl glass-card p-4 text-sm sm:text-base text-zinc-200 border border-indigo-500/20 space-y-2">
+                        <p className="text-zinc-300 leading-relaxed text-sm">
+                          Here is the production-ready React component with live preview, interactive tabs, and Tailwind styling:
+                        </p>
+                        <LiveCodePreview code={DEMO_REACT_CODE} language="jsx" />
                       </div>
-                      <p className="text-zinc-300 leading-relaxed">
-                        Based on your financial disclosures and verified web market trends:
-                      </p>
-                      <ul className="list-disc pl-5 space-y-1 text-zinc-400 text-xs">
-                        <li>Cloud computing margins expanded by 14% year-over-year [Document Context].</li>
-                        <li>Industry enterprise infrastructure is converging on multi-model routing architectures [Source 1: IDC Cloud Report].</li>
-                      </ul>
                     </div>
                   </div>
                 </div>

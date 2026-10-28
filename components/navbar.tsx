@@ -45,10 +45,10 @@ export function Navbar() {
             Sign in
           </Link>
           <Link
-            href="/signup"
+            href="/app"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-base font-semibold bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:from-indigo-600 hover:to-violet-700 shadow-md shadow-indigo-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
-            Start for Free
+            Start Chatting
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
@@ -110,11 +110,11 @@ export function Navbar() {
               Sign in
             </Link>
             <Link
-              href="/signup"
+              href="/app"
               onClick={() => setMobileMenuOpen(false)}
               className="text-center py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 text-white shadow-lg"
             >
-              Start for Free
+              Start Chatting
             </Link>
           </div>
         </div>

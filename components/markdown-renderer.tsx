@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Check, Copy, Terminal } from "lucide-react";
+import { LiveCodePreview } from "@/components/live-code-preview";
 
 interface MarkdownRendererProps {
   content: string;
@@ -22,7 +23,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
           const language = match ? match[1] || "text" : "text";
           const code = match ? match[2] : part.slice(3, -3);
 
-          return <CodeBlock key={index} code={code} language={language} />;
+          return <LiveCodePreview key={index} code={code} language={language} />;
         }
 
         // Standard text lines with inline markdown and table parser
