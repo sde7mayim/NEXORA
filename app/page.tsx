@@ -65,33 +65,34 @@ export default function LandingPage() {
         {/* HERO SECTION                                                       */}
         {/* ================================================================== */}
         <section className="relative overflow-hidden pt-20 pb-16 md:pt-28 md:pb-24 border-b border-white/5 bg-slate-950">
-          {/* Subtle Ambient Background - Reduced glow by >65% */}
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[260px] bg-indigo-950/20 blur-[100px] rounded-full pointer-events-none" />
+          {/* Subtle Low-Opacity Ambient Movement - Scoped to Homepage Only */}
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[280px] bg-indigo-950/20 blur-[100px] rounded-full pointer-events-none home-ambient-glow-1" />
+          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[220px] bg-violet-950/20 blur-[90px] rounded-full pointer-events-none home-ambient-glow-2" />
 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-            {/* Pill Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-card text-xs font-medium text-indigo-300 border border-indigo-500/20 mb-6">
+            {/* Pill Badge with subtle entrance */}
+            <div className="home-hero-badge inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-card text-xs font-medium text-indigo-300 border border-indigo-500/20 mb-6">
               <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
               <span>Next-Generation Multi-Model SaaS</span>
               <span className="text-zinc-500">•</span>
               <span className="text-zinc-400">OpenAI, Anthropic & Gemini Unified</span>
             </div>
 
-            {/* Headline matching official NEXORA brand design */}
-            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white max-w-4xl mx-auto leading-[1.1]">
+            {/* Headline with slow elegant reveal & shimmer accent */}
+            <h1 className="home-hero-title text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white max-w-4xl mx-auto leading-[1.1]">
               Your AI Workspace, <br />
-              <span className="bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-400 bg-clip-text text-transparent">
+              <span className="home-gradient-text">
                 Reimagined.
               </span>
             </h1>
 
             {/* Subheading */}
-            <p className="mt-5 text-base sm:text-xl text-zinc-300 font-normal max-w-2xl mx-auto leading-relaxed">
+            <p className="home-hero-subtitle mt-5 text-base sm:text-xl text-zinc-300 font-normal max-w-2xl mx-auto leading-relaxed">
               One workspace. Many intelligences. Unified access to OpenAI GPT-4o, Claude 3.5 Sonnet, Gemini 1.5, and Nexora Core with live code execution and persistent memory.
             </p>
 
             {/* CTAs */}
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="home-hero-cta mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
                 href="/app"
                 className="shimmer-btn w-full sm:w-auto px-8 py-3.5 rounded-xl text-base font-semibold bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 text-white hover:from-indigo-600 hover:to-violet-700 shadow-xl shadow-indigo-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
@@ -107,9 +108,9 @@ export default function LandingPage() {
               </Link>
             </div>
 
-            {/* Compact Feature Highlights Row */}
-            <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto text-left">
-              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-white/5 flex items-center gap-3">
+            {/* Compact Feature Highlights Row with Staggered Entrance */}
+            <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-3.5 max-w-4xl mx-auto text-left">
+              <div className="home-feature-card home-feature-item-1 p-3.5 rounded-2xl flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
                   <Layers className="w-4 h-4" />
                 </div>
@@ -119,7 +120,7 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-white/5 flex items-center gap-3">
+              <div className="home-feature-card home-feature-item-2 p-3.5 rounded-2xl flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
                   <Code2 className="w-4 h-4" />
                 </div>
@@ -129,7 +130,7 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-white/5 flex items-center gap-3">
+              <div className="home-feature-card home-feature-item-3 p-3.5 rounded-2xl flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400 shrink-0">
                   <Search className="w-4 h-4" />
                 </div>
@@ -139,7 +140,7 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-white/5 flex items-center gap-3">
+              <div className="home-feature-card home-feature-item-4 p-3.5 rounded-2xl flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0">
                   <Sparkles className="w-4 h-4" />
                 </div>
@@ -150,8 +151,8 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Interactive Workspace Preview */}
-            <div className="mt-14 max-w-5xl mx-auto rounded-2xl glass-panel p-2 shadow-2xl border border-white/10">
+            {/* Interactive Workspace Demonstration Preview */}
+            <div className="home-preview-container mt-14 max-w-5xl mx-auto rounded-2xl p-2 shadow-2xl">
               <div className="rounded-xl bg-slate-950/95 border border-white/5 overflow-hidden text-left">
                 {/* Mock Browser Header */}
                 <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between bg-slate-900/60">
@@ -162,8 +163,8 @@ export default function LandingPage() {
                     <span className="ml-3 text-xs text-zinc-400 font-mono">nexora.workspace/chat</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs px-2.5 py-1 rounded bg-indigo-500/20 text-indigo-300 font-medium border border-indigo-500/30">
-                      Nexora Core 1.0 (Live Preview Enabled)
+                    <span className="text-[11px] px-2.5 py-1 rounded bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30">
+                      Interactive Demonstration • Live Sandboxed Preview
                     </span>
                   </div>
                 </div>

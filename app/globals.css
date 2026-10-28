@@ -150,6 +150,169 @@ body {
   background: rgba(255, 255, 255, 0.25);
 }
 
+/* ========================================================================== */
+/* HOMEPAGE-ONLY PREMIUM GLASSMORPHISM & ELEGANT SLOW ANIMATIONS             */
+/* These decorative styles are strictly scoped to the public homepage (home-*) */
+/* Authenticated chat routes must NOT inherit these decorative slow effects.   */
+/* ========================================================================== */
+
+@keyframes homeFadeInDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes homeFadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes homeAmbientMove1 {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.16;
+  }
+  50% {
+    transform: translate(-47%, -53%) scale(1.08);
+    opacity: 0.24;
+  }
+}
+
+@keyframes homeAmbientMove2 {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.12;
+  }
+  50% {
+    transform: translate(-53%, -47%) scale(1.06);
+    opacity: 0.18;
+  }
+}
+
+@keyframes homeShimmerText {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes homeBorderGlow {
+  0%, 100% {
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.7), 0 0 30px -10px rgba(99, 102, 241, 0.12);
+  }
+  50% {
+    border-color: rgba(99, 102, 241, 0.28);
+    box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.7), 0 0 45px -8px rgba(99, 102, 241, 0.25);
+  }
+}
+
+/* Translucent Glass Navbar */
+.home-glass-nav {
+  background: rgba(10, 15, 30, 0.78);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  animation: homeFadeInDown 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Subtle continuous ambient background movements (16-20s slow cycle) */
+.home-ambient-glow-1 {
+  animation: homeAmbientMove1 18s ease-in-out infinite;
+}
+
+.home-ambient-glow-2 {
+  animation: homeAmbientMove2 22s ease-in-out infinite;
+}
+
+/* Hero elements staggered entrance */
+.home-hero-badge {
+  animation: homeFadeInUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+
+.home-hero-title {
+  animation: homeFadeInUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.22s both;
+}
+
+.home-gradient-text {
+  background: linear-gradient(135deg, #38bdf8 0%, #6366f1 50%, #a855f7 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: homeShimmerText 8s ease-in-out infinite;
+}
+
+.home-hero-subtitle {
+  animation: homeFadeInUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.34s both;
+}
+
+.home-hero-cta {
+  animation: homeFadeInUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.46s both;
+}
+
+/* Sequential Feature Cards */
+.home-feature-card {
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s ease, box-shadow 0.35s ease;
+}
+.home-feature-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 14px 30px -10px rgba(99, 102, 241, 0.2);
+}
+
+.home-feature-item-1 {
+  animation: homeFadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.55s both;
+}
+.home-feature-item-2 {
+  animation: homeFadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.65s both;
+}
+.home-feature-item-3 {
+  animation: homeFadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.75s both;
+}
+.home-feature-item-4 {
+  animation: homeFadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.85s both;
+}
+
+/* Workspace Demonstration Container */
+.home-preview-container {
+  animation: homeFadeInUp 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.92s both, homeBorderGlow 12s ease-in-out infinite;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Homepage Profile, Capability, and Pricing Cards */
+.home-card-interactive {
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s ease, box-shadow 0.35s ease;
+}
+.home-card-interactive:hover {
+  transform: translateY(-4px);
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 16px 36px -12px rgba(99, 102, 241, 0.22);
+}
+
 /* Accessibility: Respect user reduced-motion preference */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -159,5 +322,10 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+  .home-ambient-glow-1,
+  .home-ambient-glow-2,
+  .home-preview-container {
+    animation: none !important;
   }
 }
