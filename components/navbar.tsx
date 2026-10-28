@@ -19,19 +19,19 @@ export function Navbar() {
 
         {/* Desktop Nav Links */}
         <nav className="hidden md:flex items-center gap-8 text-[16px] font-medium text-zinc-300">
-          <Link href="/features" className="hover:text-white transition-colors">
+          <Link href="/features" className="home-nav-link hover:text-white">
             Features
           </Link>
-          <Link href="/models" className="hover:text-white transition-colors">
+          <Link href="/models" className="home-nav-link hover:text-white">
             Models
           </Link>
-          <Link href="/pricing" className="hover:text-white transition-colors">
+          <Link href="/pricing" className="home-nav-link hover:text-white">
             Pricing
           </Link>
-          <Link href="/security" className="hover:text-white transition-colors">
+          <Link href="/security" className="home-nav-link hover:text-white">
             Security
           </Link>
-          <Link href="/contact" className="hover:text-white transition-colors">
+          <Link href="/contact" className="home-nav-link hover:text-white">
             Contact
           </Link>
         </nav>

@@ -159,7 +159,7 @@ body {
 @keyframes homeFadeInDown {
   0% {
     opacity: 0;
-    transform: translateY(-12px);
+    transform: translateY(-16px);
   }
   100% {
     opacity: 1;
@@ -170,7 +170,7 @@ body {
 @keyframes homeFadeInUp {
   0% {
     opacity: 0;
-    transform: translateY(18px);
+    transform: translateY(22px);
   }
   100% {
     opacity: 1;
@@ -181,22 +181,22 @@ body {
 @keyframes homeAmbientMove1 {
   0%, 100% {
     transform: translate(-50%, -50%) scale(1);
-    opacity: 0.16;
+    opacity: 0.85;
   }
   50% {
     transform: translate(-47%, -53%) scale(1.08);
-    opacity: 0.24;
+    opacity: 1;
   }
 }
 
 @keyframes homeAmbientMove2 {
   0%, 100% {
     transform: translate(-50%, -50%) scale(1);
-    opacity: 0.12;
+    opacity: 0.75;
   }
   50% {
     transform: translate(-53%, -47%) scale(1.06);
-    opacity: 0.18;
+    opacity: 0.95;
   }
 }
 
@@ -211,25 +211,47 @@ body {
 
 @keyframes homeBorderGlow {
   0%, 100% {
-    border-color: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.7), 0 0 30px -10px rgba(99, 102, 241, 0.12);
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.38), 0 25px 60px -15px rgba(0, 0, 0, 0.75), 0 0 35px -10px rgba(99, 102, 241, 0.2);
   }
   50% {
-    border-color: rgba(99, 102, 241, 0.28);
-    box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.7), 0 0 45px -8px rgba(99, 102, 241, 0.25);
+    border-color: rgba(165, 180, 252, 0.45);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.55), 0 25px 60px -15px rgba(0, 0, 0, 0.75), 0 0 55px -8px rgba(99, 102, 241, 0.38);
   }
 }
 
 /* Translucent Glass Navbar */
 .home-glass-nav {
-  background: rgba(10, 15, 30, 0.78);
+  background: rgba(10, 15, 30, 0.72);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  animation: homeFadeInDown 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+  animation: homeFadeInDown 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Subtle continuous ambient background movements (16-20s slow cycle) */
+/* Navbar Nav Link with smooth hover underline and color transition */
+.home-nav-link {
+  position: relative;
+  transition: color 0.25s ease;
+  padding-bottom: 4px;
+}
+.home-nav-link::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #6366f1, #38bdf8);
+  border-radius: 9999px;
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.home-nav-link:hover::after {
+  width: 100%;
+}
+
+/* Subtle continuous ambient background movements (18-22s slow cycle) */
 .home-ambient-glow-1 {
   animation: homeAmbientMove1 18s ease-in-out infinite;
 }
@@ -238,17 +260,35 @@ body {
   animation: homeAmbientMove2 22s ease-in-out infinite;
 }
 
+/* Luminous Ambient Light Fields (Calm, restrained, yet physically illuminating through glass) */
+.home-ambient-light-hero {
+  background: radial-gradient(ellipse at center, rgba(99, 102, 241, 0.24) 0%, rgba(139, 92, 246, 0.16) 40%, rgba(56, 189, 248, 0.08) 65%, transparent 80%);
+}
+
+.home-ambient-light-cards {
+  background: radial-gradient(ellipse at center, rgba(99, 102, 241, 0.22) 0%, rgba(56, 189, 248, 0.14) 45%, rgba(168, 85, 247, 0.08) 70%, transparent 85%);
+}
+
+.home-ambient-light-workspace {
+  background: radial-gradient(ellipse at center, rgba(79, 70, 229, 0.24) 0%, rgba(147, 51, 234, 0.15) 50%, rgba(14, 165, 233, 0.08) 75%, transparent 90%);
+}
+
 /* Hero elements staggered entrance */
 .home-hero-badge {
-  animation: homeFadeInUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.03) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.32), 0 8px 20px -6px rgba(0, 0, 0, 0.4);
+  animation: homeFadeInUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 }
 
 .home-hero-title {
-  animation: homeFadeInUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.22s both;
+  animation: homeFadeInUp 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.22s both;
 }
 
 .home-gradient-text {
-  background: linear-gradient(135deg, #38bdf8 0%, #6366f1 50%, #a855f7 100%);
+  background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
   background-size: 200% 200%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -256,61 +296,111 @@ body {
 }
 
 .home-hero-subtitle {
-  animation: homeFadeInUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.34s both;
+  animation: homeFadeInUp 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.36s both;
 }
 
 .home-hero-cta {
-  animation: homeFadeInUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.46s both;
+  animation: homeFadeInUp 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
 }
 
-/* Sequential Feature Cards */
-.home-feature-card {
-  background: rgba(15, 23, 42, 0.65);
+/* Secondary CTA Button with Glass Styling */
+.home-btn-glass {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s ease, box-shadow 0.35s ease;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.3), 0 10px 25px -6px rgba(0, 0, 0, 0.4);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.home-btn-glass:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.05) 100%);
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.5), 0 14px 30px -6px rgba(99, 102, 241, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Sequential Feature Cards with Genuine Glassmorphism and Top-edge Specular Highlight */
+.home-feature-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.03) 100%);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.35),
+    inset 0 0 20px 0 rgba(255, 255, 255, 0.02),
+    0 10px 30px -10px rgba(0, 0, 0, 0.5),
+    0 0 20px -5px rgba(99, 102, 241, 0.12);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s ease, box-shadow 0.35s ease, background 0.35s ease;
+  position: relative;
+  overflow: hidden;
+}
+.home-feature-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.12), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
 }
 .home-feature-card:hover {
-  transform: translateY(-3px);
-  border-color: rgba(99, 102, 241, 0.35);
-  box-shadow: 0 14px 30px -10px rgba(99, 102, 241, 0.2);
+  transform: translateY(-4px);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.05) 100%);
+  border-color: rgba(165, 180, 252, 0.6);
+  box-shadow: 
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.6),
+    0 20px 40px -10px rgba(0, 0, 0, 0.6),
+    0 0 30px -5px rgba(99, 102, 241, 0.35);
+}
+.home-feature-card:hover::before {
+  opacity: 1;
 }
 
 .home-feature-item-1 {
-  animation: homeFadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.55s both;
+  animation: homeFadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.62s both;
 }
 .home-feature-item-2 {
-  animation: homeFadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.65s both;
+  animation: homeFadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.74s both;
 }
 .home-feature-item-3 {
-  animation: homeFadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.75s both;
+  animation: homeFadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.86s both;
 }
 .home-feature-item-4 {
-  animation: homeFadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.85s both;
+  animation: homeFadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.98s both;
 }
 
 /* Workspace Demonstration Container */
 .home-preview-container {
-  animation: homeFadeInUp 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.92s both, homeBorderGlow 12s ease-in-out infinite;
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.4),
+    0 30px 70px -15px rgba(0, 0, 0, 0.8),
+    0 0 45px -10px rgba(99, 102, 241, 0.25);
+  animation: homeFadeInUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) 1.05s both, homeBorderGlow 12s ease-in-out infinite;
+  position: relative;
 }
 
 /* Homepage Profile, Capability, and Pricing Cards */
 .home-card-interactive {
-  background: rgba(15, 23, 42, 0.55);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s ease, box-shadow 0.35s ease;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 100%);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
+    0 15px 35px -10px rgba(0, 0, 0, 0.5);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s ease, box-shadow 0.35s ease, background 0.35s ease;
 }
 .home-card-interactive:hover {
   transform: translateY(-4px);
-  border-color: rgba(99, 102, 241, 0.4);
-  box-shadow: 0 16px 36px -12px rgba(99, 102, 241, 0.22);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.04) 100%);
+  border-color: rgba(165, 180, 252, 0.5);
+  box-shadow: 
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.5),
+    0 22px 45px -10px rgba(99, 102, 241, 0.3);
 }
 
 /* Accessibility: Respect user reduced-motion preference */

@@ -65,17 +65,22 @@ export default function LandingPage() {
         {/* HERO SECTION                                                       */}
         {/* ================================================================== */}
         <section className="relative overflow-hidden pt-20 pb-16 md:pt-28 md:pb-24 border-b border-white/5 bg-slate-950">
-          {/* Subtle Low-Opacity Ambient Movement - Scoped to Homepage Only */}
+          {/* Layer 1: Subtle Geometric Grid Texture for Glass Frosting Depth */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#3b82f60a_1px,transparent_1px),linear-gradient(to_bottom,#3b82f60a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_30%,#000_70%,transparent_100%)] pointer-events-none" />
+
+          {/* Layer 2: Restrained Multi-Stop Ambient Light Layers */}
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[280px] bg-indigo-950/20 blur-[100px] rounded-full pointer-events-none home-ambient-glow-1" />
-          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[220px] bg-violet-950/20 blur-[90px] rounded-full pointer-events-none home-ambient-glow-2" />
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 w-[760px] h-[360px] rounded-full pointer-events-none home-ambient-light-hero home-ambient-glow-1 blur-[70px]" />
+          <div className="absolute top-[420px] left-1/2 -translate-x-1/2 w-[900px] h-[240px] rounded-full pointer-events-none home-ambient-light-cards home-ambient-glow-2 blur-[60px]" />
+          <div className="absolute top-[680px] left-1/2 -translate-x-1/2 w-[980px] h-[480px] rounded-full pointer-events-none home-ambient-light-workspace home-ambient-glow-1 blur-[80px]" />
 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
             {/* Pill Badge with subtle entrance */}
-            <div className="home-hero-badge inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-card text-xs font-medium text-indigo-300 border border-indigo-500/20 mb-6">
-              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+            <div className="home-hero-badge inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-medium text-indigo-300 mb-6 max-w-full">
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse shrink-0" />
               <span>Next-Generation Multi-Model SaaS</span>
-              <span className="text-zinc-500">•</span>
-              <span className="text-zinc-400">OpenAI, Anthropic & Gemini Unified</span>
+              <span className="hidden sm:inline text-zinc-500">•</span>
+              <span className="hidden sm:inline text-zinc-400">OpenAI, Anthropic & Gemini Unified</span>
             </div>
 
             {/* Headline with slow elegant reveal & shimmer accent */}
@@ -102,7 +107,7 @@ export default function LandingPage() {
               </Link>
               <Link
                 href="/features"
-                className="w-full sm:w-auto px-8 py-3.5 rounded-xl text-base font-medium glass-card text-zinc-200 hover:text-white hover:bg-white/10 border border-white/10 transition-all hover:scale-[1.01] flex items-center justify-center gap-2"
+                className="home-btn-glass w-full sm:w-auto px-8 py-3.5 rounded-xl text-base font-medium text-zinc-200 hover:text-white flex items-center justify-center gap-2"
               >
                 Explore Features
               </Link>
@@ -111,7 +116,7 @@ export default function LandingPage() {
             {/* Compact Feature Highlights Row with Staggered Entrance */}
             <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-3.5 max-w-4xl mx-auto text-left">
               <div className="home-feature-card home-feature-item-1 p-3.5 rounded-2xl flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0 shadow-sm shadow-indigo-500/10">
                   <Layers className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
@@ -121,7 +126,7 @@ export default function LandingPage() {
               </div>
 
               <div className="home-feature-card home-feature-item-2 p-3.5 rounded-2xl flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 shadow-sm shadow-emerald-500/10">
                   <Code2 className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
@@ -131,7 +136,7 @@ export default function LandingPage() {
               </div>
 
               <div className="home-feature-card home-feature-item-3 p-3.5 rounded-2xl flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400 shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400 shrink-0 shadow-sm shadow-sky-500/10">
                   <Search className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
@@ -141,7 +146,7 @@ export default function LandingPage() {
               </div>
 
               <div className="home-feature-card home-feature-item-4 p-3.5 rounded-2xl flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0 shadow-sm shadow-purple-500/10">
                   <Sparkles className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
@@ -153,9 +158,9 @@ export default function LandingPage() {
 
             {/* Interactive Workspace Demonstration Preview */}
             <div className="home-preview-container mt-14 max-w-5xl mx-auto rounded-2xl p-2 shadow-2xl">
-              <div className="rounded-xl bg-slate-950/95 border border-white/5 overflow-hidden text-left">
+              <div className="rounded-xl bg-slate-950/75 backdrop-blur-xl border border-white/10 overflow-hidden text-left">
                 {/* Mock Browser Header */}
-                <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between bg-slate-900/60">
+                <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between bg-slate-900/40 backdrop-blur-md">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-rose-500/80" />
                     <div className="w-3 h-3 rounded-full bg-amber-500/80" />
@@ -175,7 +180,7 @@ export default function LandingPage() {
                     <div className="w-8 h-8 rounded-xl bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-300 shrink-0">
                       U
                     </div>
-                    <div className="rounded-xl bg-zinc-900/70 p-3.5 text-sm sm:text-base text-zinc-200 max-w-xl border border-white/5">
+                    <div className="rounded-xl bg-white/[0.04] backdrop-blur-sm p-3.5 text-sm sm:text-base text-zinc-200 max-w-xl border border-white/10">
                       Generate an interactive analytics metric card with latency, token rate, and progress badge in React & Tailwind CSS.
                     </div>
                   </div>
@@ -185,7 +190,7 @@ export default function LandingPage() {
                       <Image src="/nexora-logo.png?v=3" alt="Nexora" width={22} height={22} className="object-contain" unoptimized />
                     </div>
                     <div className="flex-1 min-w-0 space-y-3">
-                      <div className="rounded-xl glass-card p-4 text-sm sm:text-base text-zinc-200 border border-indigo-500/20 space-y-2">
+                      <div className="rounded-xl bg-white/[0.03] backdrop-blur-md p-4 text-sm sm:text-base text-zinc-200 border border-white/10 space-y-2">
                         <p className="text-zinc-300 leading-relaxed text-sm">
                           Here is the production-ready React component with live preview, interactive tabs, and Tailwind styling:
                         </p>
@@ -219,10 +224,10 @@ export default function LandingPage() {
             {NEXORA_MODEL_FAMILIES.map((family) => (
               <div
                 key={family.id}
-                className="interactive-card rounded-2xl glass-card p-6 flex flex-col justify-between hover:border-indigo-500/40 transition-all group"
+                className="home-card-interactive rounded-2xl p-6 flex flex-col justify-between group"
               >
                 <div>
-                  <div className="w-12 h-12 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-4 group-hover:scale-110 transition-transform">
+                  <div className="w-12 h-12 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-4 group-hover:scale-110 transition-transform shadow-sm shadow-indigo-500/10">
                     {family.slug === "nexora-swift" && <Zap className="w-6 h-6" />}
                     {family.slug === "nexora-core" && <Cpu className="w-6 h-6" />}
                     {family.slug === "nexora-reason" && <Layers className="w-6 h-6" />}
@@ -247,8 +252,8 @@ export default function LandingPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {/* Feature 1 */}
-              <div className="interactive-card rounded-3xl glass-card p-8 border border-white/10 space-y-4 shadow-xl">
-                <div className="w-14 h-14 rounded-2xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400">
+              <div className="home-card-interactive rounded-3xl p-8 space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 shadow-sm shadow-violet-500/10">
                   <FileText className="w-7 h-7" />
                 </div>
                 <h4 className="text-2xl font-bold text-white">Document Reasoning</h4>
@@ -261,8 +266,8 @@ export default function LandingPage() {
               </div>
 
               {/* Feature 2 */}
-              <div className="interactive-card rounded-3xl glass-card p-8 border border-white/10 space-y-4 shadow-xl">
-                <div className="w-14 h-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+              <div className="home-card-interactive rounded-3xl p-8 space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-sm shadow-indigo-500/10">
                   <Search className="w-7 h-7" />
                 </div>
                 <h4 className="text-2xl font-bold text-white">Source-Grounded Research</h4>
@@ -275,8 +280,8 @@ export default function LandingPage() {
               </div>
 
               {/* Feature 3 */}
-              <div className="interactive-card rounded-3xl glass-card p-8 border border-white/10 space-y-4 shadow-xl">
-                <div className="w-14 h-14 rounded-2xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+              <div className="home-card-interactive rounded-3xl p-8 space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-sm shadow-emerald-500/10">
                   <Shield className="w-7 h-7" />
                 </div>
                 <h4 className="text-2xl font-bold text-white">Enterprise Governance</h4>
@@ -309,7 +314,7 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Free */}
-            <div className="rounded-3xl glass-card p-8 border border-white/10 flex flex-col justify-between shadow-xl">
+            <div className="home-card-interactive rounded-3xl p-8 flex flex-col justify-between">
               <div>
                 <h4 className="text-xl font-bold text-white">{PLAN_CONFIGS.free.displayName}</h4>
                 <div className="mt-4 mb-6">
@@ -341,14 +346,14 @@ export default function LandingPage() {
               </div>
               <Link
                 href="/signup?plan=free"
-                className="mt-8 w-full py-3.5 rounded-2xl text-center text-base font-semibold glass-card hover:bg-white/10 text-white transition-colors"
+                className="mt-8 w-full py-3.5 rounded-2xl text-center text-base font-semibold home-btn-glass text-white transition-colors"
               >
                 Get Started
               </Link>
             </div>
 
             {/* Pro */}
-            <div className="rounded-2xl glass-panel p-8 border-2 border-indigo-500/50 flex flex-col justify-between relative shadow-xl shadow-indigo-500/10">
+            <div className="home-card-interactive rounded-3xl p-8 border-2 border-indigo-500/60 flex flex-col justify-between relative shadow-xl shadow-indigo-500/20">
               <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gradient-to-r from-indigo-500 to-violet-600 text-[10px] font-bold uppercase tracking-wider text-white shadow-md">
                 Most Popular
               </div>
@@ -392,7 +397,7 @@ export default function LandingPage() {
             </div>
 
             {/* Enterprise */}
-            <div className="rounded-2xl glass-card p-8 border border-white/10 flex flex-col justify-between">
+            <div className="home-card-interactive rounded-3xl p-8 flex flex-col justify-between">
               <div>
                 <h4 className="text-lg font-bold text-white">{PLAN_CONFIGS.enterprise.displayName}</h4>
                 <div className="mt-4 mb-6">
