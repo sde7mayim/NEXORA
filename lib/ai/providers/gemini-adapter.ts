@@ -1,51 +1,27 @@
-import fs from "fs";
-import path from "path";
 import { AIProviderAdapter, ChatChunk, ChatCompletionResponse } from "../types";
-
-function readEnvLocalKey(varName: string): string | null {
-  try {
-    const envPath = path.join(process.cwd(), ".env.local");
-    if (fs.existsSync(envPath)) {
-      const content = fs.readFileSync(envPath, "utf8");
-      const match = content.match(new RegExp(`^${varName}=(.*)$`, "m"));
-      if (match && match[1]) {
-        return match[1].trim().replace(/^["']|["']$/g, "");
-      }
-    }
-  } catch {
-    // fallback gracefully
-  }
-  return null;
-}
+import { ProviderConfig } from "../provider-config";
 
 export class GeminiAdapter implements AIProviderAdapter {
   providerKey = "gemini" as const;
-  private apiKey: string | null = null;
-
-  constructor() {
-    const key =
-      process.env.GEMINI_API_KEY ||
-      process.env.GOOGLE_API_KEY ||
-      readEnvLocalKey("GEMINI_API_KEY") ||
-      readEnvLocalKey("GOOGLE_API_KEY");
-    if (key && !key.includes("...your-gemini-api-key")) {
-      this.apiKey = key.trim();
-    }
-  }
 
   private getApiKey(): string {
-    const key =
-      this.apiKey ||
-      process.env.GEMINI_API_KEY ||
-      process.env.GOOGLE_API_KEY ||
-      readEnvLocalKey("GEMINI_API_KEY") ||
-      readEnvLocalKey("GOOGLE_API_KEY");
-    if (!key || key.includes("...your-gemini-api-key")) {
+    const key = ProviderConfig.getApiKey("gemini");
+    if (!ProviderConfig.isRealKey(key)) {
       throw new Error(
-        "Gemini API key is not configured. Set GEMINI_API_KEY or GOOGLE_API_KEY in your environment."
+        "Gemini API key is not configured. Set GEMINI_API_KEY (or GOOGLE_API_KEY) in your local environment (.env.local) to use Gemini models."
       );
     }
     return key.trim();
+  }
+
+  private resolveCandidateModels(requestedModelId: string): string[] {
+    const raw = requestedModelId.replace(/^(google:|gemini:)/i, "").trim().toLowerCase();
+
+    if (raw.includes("pro")) {
+      return [raw || "gemini-1.5-pro", "gemini-1.5-pro", "gemini-1.5-pro-latest", "gemini-2.0-pro-exp"];
+    }
+
+    return [raw || "gemini-1.5-flash", "gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-2.0-flash"];
   }
 
   async generateCompletion(
@@ -63,17 +39,7 @@ export class GeminiAdapter implements AIProviderAdapter {
         parts: [{ text: m.content }],
       }));
 
-    let candidateModels = [
-      "gemini-3.5-flash",
-      "gemini-flash-lite-latest",
-      "gemini-3.1-flash-lite",
-      "gemini-3.7-flash",
-      "gemini-3.8-flash",
-    ];
-    const rawId = modelId.replace(/^(google:|gemini:)/, "").toLowerCase();
-    if (rawId.includes("pro")) {
-      candidateModels = ["gemini-3.5-flash", "gemini-3.1-pro-preview", "gemini-pro-latest"];
-    }
+    const candidateModels = Array.from(new Set(this.resolveCandidateModels(modelId)));
 
     let lastError: Error | null = null;
     let data: any = null;
@@ -104,7 +70,15 @@ export class GeminiAdapter implements AIProviderAdapter {
 
         if (!res.ok) {
           const errText = await res.text();
-          throw new Error(`Gemini API error (${res.status}): ${errText}`);
+          let parsedMsg = errText;
+          try {
+            const errObj = JSON.parse(errText);
+            if (errObj.error?.message) parsedMsg = errObj.error.message;
+          } catch {}
+
+          const error = new Error(`Gemini API error (${res.status}): ${parsedMsg}`);
+          (error as any).status = res.status;
+          throw error;
         }
 
         const resData = await res.json();
@@ -117,13 +91,21 @@ export class GeminiAdapter implements AIProviderAdapter {
         }
       } catch (err) {
         lastError = err as Error;
-        // Continue to next candidate model
+        // If error is auth error (401/403) or quota, do not keep trying models with the same broken key
+        const status = (err as any)?.status;
+        if (status === 401 || status === 403 || /api_key/i.test((err as Error).message)) {
+          break;
+        }
       }
     }
 
     if (!data) {
-      throw lastError || new Error("Gemini failed to generate response across candidate models.");
+      const finalErr = lastError || new Error("Gemini failed to generate response across candidate models.");
+      ProviderConfig.recordError("gemini", finalErr);
+      throw finalErr;
     }
+
+    ProviderConfig.recordSuccess("gemini");
 
     const candidate = data.candidates?.[0];
     const text = candidate?.content?.parts?.map((p: any) => p.text).filter(Boolean).join("") || "";
@@ -146,25 +128,30 @@ export class GeminiAdapter implements AIProviderAdapter {
     messages: Array<{ role: string; content: string }>,
     options?: { temperature?: number; maxTokens?: number }
   ): AsyncIterable<ChatChunk> {
-    const response = await this.generateCompletion(modelId, messages, options);
-    const words = response.content.split(" ");
+    try {
+      const response = await this.generateCompletion(modelId, messages, options);
+      const words = response.content.split(" ");
 
-    for (let i = 0; i < words.length; i++) {
-      const text = (i === 0 ? "" : " ") + words[i];
-      const isComplete = i === words.length - 1;
-      yield {
-        id: response.id,
-        textDelta: text,
-        isComplete,
-        finishReason: isComplete ? response.finishReason : undefined,
-        usage: isComplete
-          ? {
-              promptTokens: response.promptTokens,
-              completionTokens: response.completionTokens,
-              totalTokens: response.promptTokens + response.completionTokens,
-            }
-          : undefined,
-      };
+      for (let i = 0; i < words.length; i++) {
+        const text = (i === 0 ? "" : " ") + words[i];
+        const isComplete = i === words.length - 1;
+        yield {
+          id: response.id,
+          textDelta: text,
+          isComplete,
+          finishReason: isComplete ? response.finishReason : undefined,
+          usage: isComplete
+            ? {
+                promptTokens: response.promptTokens,
+                completionTokens: response.completionTokens,
+                totalTokens: response.promptTokens + response.completionTokens,
+              }
+            : undefined,
+        };
+      }
+    } catch (err) {
+      ProviderConfig.recordError("gemini", err);
+      throw err;
     }
   }
 }
