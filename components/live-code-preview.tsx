@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Code2,
   Eye,
@@ -10,14 +10,18 @@ import {
   Check,
   Download,
   Terminal,
-  ExternalLink,
   Maximize2,
   Minimize2,
+  RotateCcw,
+  Play,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 
 interface LiveCodePreviewProps {
   code: string;
   language: string;
+  allowEdit?: boolean;
 }
 
 /**
@@ -75,7 +79,6 @@ function buildSandboxedDoc(sourceCode: string, language: string): string {
   }
 
   if (isHtml) {
-    // If it already has a full HTML structure, inject Tailwind if not present
     if (sourceCode.includes("<head>")) {
       return sourceCode.replace(
         "<head>",
@@ -99,7 +102,6 @@ function buildSandboxedDoc(sourceCode: string, language: string): string {
   }
 
   // React / JSX / JS Component Wrapper
-  // Strip import statements that Babel standalone in browser cannot resolve directly, and extract the Component name
   const cleanCode = sourceCode
     .replace(/^import\s+.*?from\s+['"].*?['"];?/gm, "")
     .replace(/^export\s+default\s+/gm, "const __NexoraApp = ")
@@ -114,7 +116,6 @@ function buildSandboxedDoc(sourceCode: string, language: string): string {
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
       body {
         margin: 0;
@@ -127,12 +128,13 @@ function buildSandboxedDoc(sourceCode: string, language: string): string {
         display: none;
         padding: 1rem;
         border-radius: 0.75rem;
-        background-color: rgba(239, 68, 68, 0.1);
-        border: 1px solid rgba(239, 68, 68, 0.3);
+        background-color: rgba(239, 68, 68, 0.12);
+        border: 1px solid rgba(239, 68, 68, 0.35);
         color: #f87171;
-        font-family: monospace;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
         font-size: 0.8125rem;
         white-space: pre-wrap;
+        margin-bottom: 1rem;
       }
     </style>
   </head>
@@ -147,7 +149,7 @@ function buildSandboxedDoc(sourceCode: string, language: string): string {
         const errEl = document.getElementById("error-boundary");
         if (errEl) {
           errEl.style.display = "block";
-          errEl.textContent = "Preview error: " + (message || "Failed to render component");
+          errEl.textContent = "Preview runtime error: " + (message || "Failed to render component");
         }
       };
 
@@ -156,14 +158,13 @@ function buildSandboxedDoc(sourceCode: string, language: string): string {
 
         const TargetComponent = typeof __NexoraApp !== "undefined"
           ? __NexoraApp
-          : (typeof App !== "undefined" ? App : (typeof Dashboard !== "undefined" ? Dashboard : null));
+          : (typeof App !== "undefined" ? App : (typeof AnalyticsCard !== "undefined" ? AnalyticsCard : (typeof Dashboard !== "undefined" ? Dashboard : null)));
 
         if (TargetComponent) {
           const root = ReactDOM.createRoot(document.getElementById("root"));
           root.render(React.createElement(TargetComponent));
         } else {
-          // If no React component detected, check if there was pure HTML or JSX expression
-          document.getElementById("root").innerHTML = \`<div class="text-zinc-400 text-xs font-mono p-4">Component rendered successfully</div>\`;
+          document.getElementById("root").innerHTML = \`<div class="text-zinc-400 text-xs font-mono p-4">Component exported or rendered successfully</div>\`;
         }
       } catch (err) {
         const errEl = document.getElementById("error-boundary");
@@ -177,17 +178,34 @@ function buildSandboxedDoc(sourceCode: string, language: string): string {
 </html>`;
 }
 
-export function LiveCodePreview({ code, language }: LiveCodePreviewProps) {
+export function LiveCodePreview({ code, language, allowEdit = true }: LiveCodePreviewProps) {
   const [copied, setCopied] = useState(false);
   const [viewMode, setViewMode] = useState<"code" | "preview" | "split">("preview");
   const [source, setSource] = useState(code);
+  const [debouncedSource, setDebouncedSource] = useState(code);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isCompiling, setIsCompiling] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Sync if code prop updates
+  // Sync if initial code prop updates
   useEffect(() => {
     setSource(code);
+    setDebouncedSource(code);
   }, [code]);
+
+  // Debounced auto-preview re-rendering (450ms debounce)
+  useEffect(() => {
+    setIsCompiling(true);
+    const handler = setTimeout(() => {
+      setDebouncedSource(source);
+      setIsCompiling(false);
+    }, 450);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [source]);
 
   const previewable = isPreviewableLanguage(language, source);
 
@@ -195,6 +213,32 @@ export function LiveCodePreview({ code, language }: LiveCodePreviewProps) {
     navigator.clipboard.writeText(source);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleReset = () => {
+    setSource(code);
+    setDebouncedSource(code);
+    setRefreshKey((k) => k + 1);
+  };
+
+  const handleRun = () => {
+    setDebouncedSource(source);
+    setRefreshKey((k) => k + 1);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const target = e.currentTarget;
+      const start = target.selectionStart;
+      const end = target.selectionEnd;
+      const val = target.value;
+      const newVal = val.substring(0, start) + "  " + val.substring(end);
+      setSource(newVal);
+      setTimeout(() => {
+        target.selectionStart = target.selectionEnd = start + 2;
+      }, 0);
+    }
   };
 
   const handleDownload = () => {
@@ -224,7 +268,7 @@ export function LiveCodePreview({ code, language }: LiveCodePreviewProps) {
     URL.revokeObjectURL(url);
   };
 
-  const sandboxedDoc = previewable ? buildSandboxedDoc(source, language) : "";
+  const sandboxedDoc = previewable ? buildSandboxedDoc(debouncedSource, language) : "";
 
   // If not previewable (e.g. Python, SQL, Bash), render clean modern code block
   if (!previewable) {
@@ -270,6 +314,8 @@ export function LiveCodePreview({ code, language }: LiveCodePreviewProps) {
       </div>
     );
   }
+
+  const lineCount = source.split("\n").length;
 
   return (
     <div
@@ -319,9 +365,29 @@ export function LiveCodePreview({ code, language }: LiveCodePreviewProps) {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-1.5 text-xs">
-          <span className="hidden sm:inline font-mono uppercase text-[11px] font-bold px-2 py-0.5 rounded bg-white/5 text-zinc-400 border border-white/5">
-            {language || "react"}
-          </span>
+          {allowEdit && (
+            <button
+              onClick={handleRun}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 font-semibold transition-colors shadow-sm"
+              title="Run & re-render preview immediately"
+              aria-label="Run and re-render preview"
+            >
+              <Play className="w-3 h-3 fill-current" />
+              <span>Run</span>
+            </button>
+          )}
+
+          {allowEdit && source !== code && (
+            <button
+              onClick={handleReset}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-amber-300 transition-colors"
+              title="Reset to original code"
+              aria-label="Reset demo"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span className="hidden sm:inline">Reset</span>
+            </button>
+          )}
 
           <button
             onClick={() => setRefreshKey((k) => k + 1)}
@@ -329,7 +395,7 @@ export function LiveCodePreview({ code, language }: LiveCodePreviewProps) {
             title="Refresh preview"
             aria-label="Refresh preview"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <RefreshCw className={`w-3.5 h-3.5 ${isCompiling ? "animate-spin text-indigo-400" : ""}`} />
           </button>
 
           <button
@@ -372,15 +438,34 @@ export function LiveCodePreview({ code, language }: LiveCodePreviewProps) {
       {/* Main Content Area */}
       <div
         className={`transition-all duration-200 overflow-hidden ${
-          isExpanded ? "h-[580px]" : "h-[380px] sm:h-[420px]"
+          isExpanded ? "h-[640px]" : "h-[420px] sm:h-[460px]"
         }`}
       >
         {/* Split View (Desktop) */}
         {viewMode === "split" && (
           <div className="hidden md:grid md:grid-cols-2 h-full divide-x divide-white/10">
-            {/* Code Column */}
-            <div className="h-full overflow-auto bg-slate-950 p-4 font-mono text-[13.5px] text-zinc-200 leading-relaxed">
-              <pre className="whitespace-pre font-mono">{source}</pre>
+            {/* Editable Code Column */}
+            <div className="h-full flex flex-col bg-slate-950/95 relative overflow-hidden">
+              <div className="px-3 py-1.5 bg-slate-900/60 border-b border-white/5 flex items-center justify-between text-[11px] text-zinc-400">
+                <span className="font-mono text-indigo-300">Editable Source ({language || "jsx"})</span>
+                <span>Auto-updates preview</span>
+              </div>
+              <div className="flex-1 flex overflow-hidden">
+                <div className="w-10 py-3 pr-2 select-none text-right font-mono text-xs text-zinc-600 bg-slate-950/40 border-r border-white/5">
+                  {Array.from({ length: Math.min(lineCount, 60) }, (_, i) => (
+                    <div key={i}>{i + 1}</div>
+                  ))}
+                </div>
+                <textarea
+                  ref={textareaRef}
+                  value={source}
+                  onChange={(e) => setSource(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  spellCheck={false}
+                  autoCapitalize="off"
+                  className="flex-1 h-full p-3 font-mono text-[13px] text-zinc-200 bg-transparent resize-none focus:outline-none focus:ring-0 leading-relaxed overflow-auto selection:bg-indigo-600/30"
+                />
+              </div>
             </div>
 
             {/* Preview Column */}
@@ -398,8 +483,26 @@ export function LiveCodePreview({ code, language }: LiveCodePreviewProps) {
 
         {/* Code View */}
         {viewMode === "code" && (
-          <div className="h-full overflow-auto bg-slate-950 p-4 md:p-5 font-mono text-[14px] text-zinc-200 leading-relaxed">
-            <pre className="whitespace-pre font-mono">{source}</pre>
+          <div className="h-full flex flex-col bg-slate-950/95 relative overflow-hidden">
+            <div className="px-3 py-1.5 bg-slate-900/60 border-b border-white/5 flex items-center justify-between text-[11px] text-zinc-400">
+              <span className="font-mono text-indigo-300">Live Code Editor • Edit source to re-render preview</span>
+              <span className="text-emerald-400 font-semibold">Changes update automatically</span>
+            </div>
+            <div className="flex-1 flex overflow-hidden">
+              <div className="w-12 py-3 pr-2 select-none text-right font-mono text-xs text-zinc-600 bg-slate-950/40 border-r border-white/5">
+                {Array.from({ length: Math.min(lineCount, 80) }, (_, i) => (
+                  <div key={i}>{i + 1}</div>
+                ))}
+              </div>
+              <textarea
+                value={source}
+                onChange={(e) => setSource(e.target.value)}
+                onKeyDown={handleKeyDown}
+                spellCheck={false}
+                autoCapitalize="off"
+                className="flex-1 h-full p-4 font-mono text-[14px] text-zinc-200 bg-transparent resize-none focus:outline-none focus:ring-0 leading-relaxed overflow-auto selection:bg-indigo-600/30"
+              />
+            </div>
           </div>
         )}
 
@@ -420,12 +523,11 @@ export function LiveCodePreview({ code, language }: LiveCodePreviewProps) {
       {/* Footer Info Bar */}
       <div className="px-4 py-2 bg-slate-950 border-t border-white/5 flex items-center justify-between text-[11px] text-zinc-500">
         <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-          <span>Sandboxed Execution • Tailwind CSS & React Supported</span>
+          <span className={`w-1.5 h-1.5 rounded-full ${isCompiling ? "bg-amber-400 animate-pulse" : "bg-emerald-400"}`} />
+          <span>{isCompiling ? "Re-rendering preview..." : "Sandboxed Execution • Tailwind CSS & React Supported"}</span>
         </div>
         <span>Safe Client-Side Preview</span>
       </div>
     </div>
   );
 }
-

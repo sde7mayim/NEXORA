@@ -22,6 +22,12 @@ describe("Live Coding & Preview Architecture", () => {
     expect(content).toContain("cdn.tailwindcss.com");
     expect(content).toContain("react@18");
     expect(content).toContain("@babel/standalone");
+
+    // Editable code editor, debounced auto-rendering, Run & Reset controls
+    expect(content).toContain("handleRun");
+    expect(content).toContain("handleReset");
+    expect(content).toContain("debouncedSource");
+    expect(content).toContain("textarea");
   });
 
   it("should integrate LiveCodePreview directly into MarkdownRenderer", () => {
@@ -47,5 +53,33 @@ describe("Live Coding & Preview Architecture", () => {
     // Live code preview embedded in workspace demo
     expect(content).toContain("<LiveCodePreview code={DEMO_REACT_CODE} language=\"jsx\" />");
   });
-});
 
+  it("should verify public pages have consistent glassmorphic styling and ambient lighting", () => {
+    const publicPages = [
+      "app/page.tsx",
+      "app/features/page.tsx",
+      "app/models/page.tsx",
+      "app/pricing/page.tsx",
+      "app/security/page.tsx",
+      "app/contact/page.tsx",
+    ];
+
+    for (const pageRel of publicPages) {
+      const fullPath = path.resolve(process.cwd(), pageRel);
+      expect(fs.existsSync(fullPath)).toBe(true);
+      const text = fs.readFileSync(fullPath, "utf-8");
+      expect(text).toContain("bg-slate-950 text-slate-100");
+      expect(text).toContain("home-card-interactive");
+      expect(text).toContain("home-ambient-light-hero");
+    }
+  });
+
+  it("should implement contact API endpoint with Zod schema validation", () => {
+    const contactRoutePath = path.resolve(process.cwd(), "app/api/contact/route.ts");
+    expect(fs.existsSync(contactRoutePath)).toBe(true);
+    const text = fs.readFileSync(contactRoutePath, "utf-8");
+    expect(text).toContain("ContactSchema");
+    expect(text).toContain("safeParse");
+    expect(text).toContain("ticketId");
+  });
+});

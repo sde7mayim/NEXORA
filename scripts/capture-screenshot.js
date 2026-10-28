@@ -3,10 +3,9 @@ const path = require('path');
 const fs = require('fs');
 
 async function main() {
-  const targetImage = process.argv[2] || 'screenshot.png';
-  const port = process.argv[3] || '3456';
-  const url = `http://localhost:${port}`;
-  const outPath = path.resolve('C:/Users/MayimDazzle_10/.gemini/antigravity/brain/e92fc285-5c7d-4a95-8da7-00f2c6e92787', targetImage);
+  const port = process.argv[2] || '3456';
+  const baseUrl = `http://localhost:${port}`;
+  const outDir = path.resolve('C:/Users/MayimDazzle_10/.gemini/antigravity/brain/e92fc285-5c7d-4a95-8da7-00f2c6e92787');
 
   try {
     execSync('node scripts/clean-next.js', { stdio: 'inherit' });
@@ -25,15 +24,13 @@ async function main() {
     for (let i = 0; i < 40; i++) {
       await new Promise(r => setTimeout(r, 1000));
       try {
-        const res = execSync(`curl -s http://localhost:${port}/`).toString();
+        const res = execSync(`curl -s ${baseUrl}/`).toString();
         if (res && res.includes('Nexora')) {
           connected = true;
-          console.log('Server is ready and page compiled!');
+          console.log('Server is ready and root page compiled!');
           break;
         }
-      } catch (e) {
-        // retry
-      }
+      } catch (e) {}
     }
 
     if (!connected) {
@@ -41,21 +38,37 @@ async function main() {
       process.exit(1);
     }
 
-    // Wait 2.5s for all staggered entrance animations to settle
-    await new Promise(r => setTimeout(r, 2500));
-
     const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-    console.log(`Capturing screenshot to ${outPath}...`);
-    execSync(`"${chromePath}" --headless=new --disable-gpu --screenshot="${outPath}" --window-size=1440,1080 "${url}"`);
-    console.log(`Screenshot saved to ${outPath} (${fs.statSync(outPath).size} bytes)`);
 
-    // Also mobile view
-    const mobileOut = outPath.replace('.png', '-mobile.png');
-    execSync(`"${chromePath}" --headless=new --disable-gpu --screenshot="${mobileOut}" --window-size=390,844 "${url}"`);
-    console.log(`Mobile screenshot saved to ${mobileOut} (${fs.statSync(mobileOut).size} bytes)`);
+    const routes = [
+      { path: '/', name: 'homepage-v2' },
+      { path: '/features', name: 'features-page' },
+      { path: '/models', name: 'models-page' },
+      { path: '/pricing', name: 'pricing-page' },
+      { path: '/security', name: 'security-page' },
+      { path: '/contact', name: 'contact-page' },
+    ];
+
+    for (const route of routes) {
+      const pageUrl = `${baseUrl}${route.path}`;
+      const desktopFile = path.join(outDir, `${route.name}.png`);
+      const mobileFile = path.join(outDir, `${route.name}-mobile.png`);
+
+      console.log(`Compiling and capturing ${route.path}...`);
+      // Touch route
+      try { execSync(`curl -s ${pageUrl}`); } catch (e) {}
+      await new Promise(r => setTimeout(r, 1500));
+
+      // Desktop screenshot
+      execSync(`"${chromePath}" --headless=new --disable-gpu --screenshot="${desktopFile}" --window-size=1440,1080 "${pageUrl}"`);
+      console.log(`Saved desktop: ${route.name}.png (${fs.statSync(desktopFile).size} bytes)`);
+
+      // Mobile screenshot
+      execSync(`"${chromePath}" --headless=new --disable-gpu --screenshot="${mobileFile}" --window-size=390,844 "${pageUrl}"`);
+      console.log(`Saved mobile: ${route.name}-mobile.png (${fs.statSync(mobileFile).size} bytes)`);
+    }
 
   } finally {
-    // Kill the server process tree
     try {
       execSync(`taskkill /F /T /PID ${server.pid}`);
     } catch (e) {}
@@ -66,4 +79,3 @@ main().catch(err => {
   console.error(err);
   process.exit(1);
 });
-

@@ -22,34 +22,87 @@ import { formatPrice } from "@/lib/utils";
 import { LiveCodePreview } from "@/components/live-code-preview";
 
 const DEMO_REACT_CODE = `export default function AnalyticsCard() {
-  const [activeTab, setActiveTab] = useState("7d");
-  
+  const [timeframe, setTimeframe] = useState("7d");
+  const [tokens, setTokens] = useState(142890);
+  const [exported, setExported] = useState(false);
+
+  const metrics = {
+    "24h": { tokens: 28410, change: "+14.2%", latency: "290ms", success: "99.99%", quota: 42 },
+    "7d": { tokens: 142890, change: "+28.4%", latency: "340ms", success: "99.98%", quota: 72 },
+    "30d": { tokens: 684200, change: "+41.8%", latency: "360ms", success: "99.95%", quota: 88 },
+  };
+
+  const current = metrics[timeframe] || metrics["7d"];
+
+  const handleSimulate = () => {
+    setTokens((prev) => prev + 2500);
+  };
+
+  const handleExport = () => {
+    setExported(true);
+    setTimeout(() => setExported(false), 2000);
+  };
+
   return (
-    <div className="p-5 rounded-2xl bg-slate-900 border border-white/10 text-white max-w-md mx-auto shadow-2xl space-y-4">
+    <div className="p-5 rounded-2xl bg-slate-900 border border-white/10 text-white max-w-md mx-auto shadow-2xl space-y-4 font-sans">
       <div className="flex items-center justify-between">
         <div>
           <span className="text-xs uppercase font-bold tracking-wider text-indigo-400">Total Inference</span>
-          <h3 className="text-2xl font-bold mt-0.5">142,890 tokens</h3>
+          <h3 className="text-2xl font-bold mt-0.5">{tokens.toLocaleString()} tokens</h3>
         </div>
-        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-          +28.4%
-        </span>
+        <div className="flex bg-slate-950 p-1 rounded-lg border border-white/5 text-xs font-semibold">
+          {["24h", "7d", "30d"].map((t) => (
+            <button
+              key={t}
+              onClick={() => {
+                setTimeframe(t);
+                setTokens(metrics[t].tokens);
+              }}
+              className={"px-2.5 py-1 rounded transition-colors " + (timeframe === t ? "bg-indigo-600 text-white shadow-sm" : "text-zinc-400 hover:text-white")}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 pt-1">
         <div className="p-3 rounded-xl bg-slate-950/80 border border-white/5">
           <div className="text-[11px] text-zinc-400">Avg. Latency</div>
-          <div className="text-lg font-bold text-white mt-0.5">340ms</div>
+          <div className="text-lg font-bold text-white mt-0.5">{current.latency}</div>
         </div>
         <div className="p-3 rounded-xl bg-slate-950/80 border border-white/5">
           <div className="text-[11px] text-zinc-400">Success Rate</div>
-          <div className="text-lg font-bold text-emerald-400 mt-0.5">99.98%</div>
+          <div className="text-lg font-bold text-emerald-400 mt-0.5">{current.success}</div>
+        </div>
+      </div>
+
+      <div>
+        <div className="flex justify-between text-xs text-zinc-400 mb-1">
+          <span>Monthly Quota Utilized</span>
+          <span className="text-indigo-300 font-semibold">{current.quota}%</span>
+        </div>
+        <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-white/5">
+          <div
+            className="bg-gradient-to-r from-indigo-500 to-violet-500 h-2 rounded-full transition-all duration-300"
+            style={{ width: current.quota + "%" }}
+          />
         </div>
       </div>
 
       <div className="pt-2 flex items-center justify-between text-xs text-zinc-400 border-t border-white/5">
-        <span>Model: Nexora Core 1.0</span>
-        <button className="text-indigo-400 hover:text-indigo-300 font-medium">Export Report →</button>
+        <button
+          onClick={handleSimulate}
+          className="px-2.5 py-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 font-semibold transition-colors"
+        >
+          + Simulate Query
+        </button>
+        <button
+          onClick={handleExport}
+          className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
+        >
+          {exported ? "Report Exported ✓" : "Export Report →"}
+        </button>
       </div>
     </div>
   );
