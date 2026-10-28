@@ -1,18 +1,15 @@
 const { spawn, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const http = require('http');
 
 async function main() {
   const port = process.argv[2] || '3456';
-  const baseUrl = `http://localhost:${port}`;
+  const baseUrl = `http://127.0.0.1:${port}`;
   const outDir = path.resolve('C:/Users/MayimDazzle_10/.gemini/antigravity/brain/e92fc285-5c7d-4a95-8da7-00f2c6e92787');
 
-  try {
-    execSync('node scripts/clean-next.js', { stdio: 'inherit' });
-  } catch (e) {}
-
-  console.log(`Starting next dev on port ${port}...`);
-  const server = spawn('node', ['node_modules/next/dist/bin/next', 'dev', '-p', port], {
+  console.log(`Starting next start on port ${port}...`);
+  const server = spawn('node', ['node_modules/next/dist/bin/next', 'start', '-H', '127.0.0.1', '-p', port], {
     stdio: 'inherit',
     shell: false,
     detached: false
@@ -21,13 +18,20 @@ async function main() {
   try {
     // Wait for server to come up
     let connected = false;
-    for (let i = 0; i < 40; i++) {
-      await new Promise(r => setTimeout(r, 1000));
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 600));
       try {
-        const res = execSync(`curl -s ${baseUrl}/`).toString();
-        if (res && res.includes('Nexora')) {
+        const body = await new Promise((resolve, reject) => {
+          const req = http.get(baseUrl + '/', { timeout: 2000 }, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => resolve(data));
+          });
+          req.on('error', reject);
+        });
+        if (body && body.includes('Nexora')) {
           connected = true;
-          console.log('Server is ready and root page compiled!');
+          console.log('Server is ready!');
           break;
         }
       } catch (e) {}
@@ -41,7 +45,7 @@ async function main() {
     const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 
     const routes = [
-      { path: '/', name: 'homepage-v2' },
+      { path: '/', name: 'homepage-dynamic-demo' },
       { path: '/features', name: 'features-page' },
       { path: '/models', name: 'models-page' },
       { path: '/pricing', name: 'pricing-page' },
@@ -54,13 +58,13 @@ async function main() {
       const desktopFile = path.join(outDir, `${route.name}.png`);
       const mobileFile = path.join(outDir, `${route.name}-mobile.png`);
 
-      console.log(`Compiling and capturing ${route.path}...`);
+      console.log(`Capturing ${route.path}...`);
       // Touch route
       try { execSync(`curl -s ${pageUrl}`); } catch (e) {}
-      await new Promise(r => setTimeout(r, 1500));
+      await new Promise(r => setTimeout(r, 600));
 
       // Desktop screenshot
-      execSync(`"${chromePath}" --headless=new --disable-gpu --screenshot="${desktopFile}" --window-size=1440,1080 "${pageUrl}"`);
+      execSync(`"${chromePath}" --headless=new --disable-gpu --screenshot="${desktopFile}" --window-size=1440,1150 "${pageUrl}"`);
       console.log(`Saved desktop: ${route.name}.png (${fs.statSync(desktopFile).size} bytes)`);
 
       // Mobile screenshot

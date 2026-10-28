@@ -1,13 +1,18 @@
 const fs = require('fs');
 const path = require('path');
 
-const nextDir = path.join(__dirname, '..', '.next');
-if (fs.existsSync(nextDir)) {
-  try {
-    fs.rmSync(nextDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 });
-    console.log('[clean-next] Successfully cleaned .next directory.');
-  } catch (err) {
-    console.warn('[clean-next] Notice: .next cleanup skipped or partially locked by OneDrive/Process:', err.message);
-  }
-}
+// Ensure base directories exist without destructive rmSync on OneDrive
+const commonDirs = [
+  '.next',
+  '.next/server',
+  '.next/server/app',
+  '.next/server/app/api',
+  '.next/server/app/app',
+];
 
+for (const d of commonDirs) {
+  const full = path.join(__dirname, '..', d);
+  try {
+    fs.mkdirSync(full, { recursive: true });
+  } catch (err) {}
+}

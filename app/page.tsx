@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Navbar } from "@/components/navbar";
@@ -15,100 +18,43 @@ import {
   Lock,
   ChevronRight,
   Code2,
+  RefreshCw,
 } from "lucide-react";
 import { NEXORA_MODEL_FAMILIES } from "@/lib/ai/model-registry";
 import { PLAN_CONFIGS } from "@/lib/entitlements/types";
 import { formatPrice } from "@/lib/utils";
 import { LiveCodePreview } from "@/components/live-code-preview";
-
-const DEMO_REACT_CODE = `export default function AnalyticsCard() {
-  const [timeframe, setTimeframe] = useState("7d");
-  const [tokens, setTokens] = useState(142890);
-  const [exported, setExported] = useState(false);
-
-  const metrics = {
-    "24h": { tokens: 28410, change: "+14.2%", latency: "290ms", success: "99.99%", quota: 42 },
-    "7d": { tokens: 142890, change: "+28.4%", latency: "340ms", success: "99.98%", quota: 72 },
-    "30d": { tokens: 684200, change: "+41.8%", latency: "360ms", success: "99.95%", quota: 88 },
-  };
-
-  const current = metrics[timeframe] || metrics["7d"];
-
-  const handleSimulate = () => {
-    setTokens((prev) => prev + 2500);
-  };
-
-  const handleExport = () => {
-    setExported(true);
-    setTimeout(() => setExported(false), 2000);
-  };
-
-  return (
-    <div className="p-5 rounded-2xl bg-slate-900 border border-white/10 text-white max-w-md mx-auto shadow-2xl space-y-4 font-sans">
-      <div className="flex items-center justify-between">
-        <div>
-          <span className="text-xs uppercase font-bold tracking-wider text-indigo-400">Total Inference</span>
-          <h3 className="text-2xl font-bold mt-0.5">{tokens.toLocaleString()} tokens</h3>
-        </div>
-        <div className="flex bg-slate-950 p-1 rounded-lg border border-white/5 text-xs font-semibold">
-          {["24h", "7d", "30d"].map((t) => (
-            <button
-              key={t}
-              onClick={() => {
-                setTimeframe(t);
-                setTokens(metrics[t].tokens);
-              }}
-              className={"px-2.5 py-1 rounded transition-colors " + (timeframe === t ? "bg-indigo-600 text-white shadow-sm" : "text-zinc-400 hover:text-white")}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 pt-1">
-        <div className="p-3 rounded-xl bg-slate-950/80 border border-white/5">
-          <div className="text-[11px] text-zinc-400">Avg. Latency</div>
-          <div className="text-lg font-bold text-white mt-0.5">{current.latency}</div>
-        </div>
-        <div className="p-3 rounded-xl bg-slate-950/80 border border-white/5">
-          <div className="text-[11px] text-zinc-400">Success Rate</div>
-          <div className="text-lg font-bold text-emerald-400 mt-0.5">{current.success}</div>
-        </div>
-      </div>
-
-      <div>
-        <div className="flex justify-between text-xs text-zinc-400 mb-1">
-          <span>Monthly Quota Utilized</span>
-          <span className="text-indigo-300 font-semibold">{current.quota}%</span>
-        </div>
-        <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-white/5">
-          <div
-            className="bg-gradient-to-r from-indigo-500 to-violet-500 h-2 rounded-full transition-all duration-300"
-            style={{ width: current.quota + "%" }}
-          />
-        </div>
-      </div>
-
-      <div className="pt-2 flex items-center justify-between text-xs text-zinc-400 border-t border-white/5">
-        <button
-          onClick={handleSimulate}
-          className="px-2.5 py-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 font-semibold transition-colors"
-        >
-          + Simulate Query
-        </button>
-        <button
-          onClick={handleExport}
-          className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
-        >
-          {exported ? "Report Exported ✓" : "Export Report →"}
-        </button>
-      </div>
-    </div>
-  );
-}`;
+import {
+  HOMEPAGE_DEMOS,
+  getNextDemoExample,
+  DemoExample,
+  getLastViewedDemoId,
+} from "@/lib/demo/homepage-demos";
 
 export default function LandingPage() {
+  const [currentDemo, setCurrentDemo] = useState<DemoExample>(HOMEPAGE_DEMOS[0]);
+  const [isRotating, setIsRotating] = useState(false);
+
+  useEffect(() => {
+    const lastId = getLastViewedDemoId();
+    if (lastId) {
+      const next = getNextDemoExample(lastId);
+      setCurrentDemo(next);
+    } else {
+      try {
+        sessionStorage.setItem("nexora_last_demo_id", HOMEPAGE_DEMOS[0].id);
+      } catch {}
+    }
+  }, []);
+
+  const handleTryAnotherDemo = () => {
+    setIsRotating(true);
+    const next = getNextDemoExample(currentDemo.id);
+    setCurrentDemo(next);
+    setTimeout(() => setIsRotating(false), 350);
+  };
+
+  const DEMO_REACT_CODE = currentDemo.code;
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-100">
       <Navbar />
@@ -213,18 +159,50 @@ export default function LandingPage() {
             <div className="home-preview-container mt-14 max-w-5xl mx-auto rounded-2xl p-2 shadow-2xl">
               <div className="rounded-xl bg-slate-950/75 backdrop-blur-xl border border-white/10 overflow-hidden text-left">
                 {/* Mock Browser Header */}
-                <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between bg-slate-900/40 backdrop-blur-md">
+                <div className="px-4 py-3 border-b border-white/10 flex flex-wrap items-center justify-between gap-3 bg-slate-900/40 backdrop-blur-md">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-rose-500/80" />
                     <div className="w-3 h-3 rounded-full bg-amber-500/80" />
                     <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
                     <span className="ml-3 text-xs text-zinc-400 font-mono">nexora.workspace/chat</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] px-2.5 py-1 rounded bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30">
-                      Interactive Demonstration • Live Sandboxed Preview
+                    <span className="hidden md:inline-flex items-center text-[11px] px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30">
+                      {currentDemo.badge}
                     </span>
                   </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleTryAnotherDemo}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-indigo-600/30 to-violet-600/30 hover:from-indigo-600/50 hover:to-violet-600/50 text-indigo-200 border border-indigo-500/40 shadow-sm transition-all active:scale-95"
+                      title="Cycle to another demo example"
+                    >
+                      <RefreshCw className={"w-3 h-3 text-indigo-300 transition-transform duration-300 " + (isRotating ? "rotate-180 text-white" : "")} />
+                      <span>Try Another Demo</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Example Quick Switcher Pill Bar */}
+                <div className="px-4 py-2 bg-slate-950/90 border-b border-white/5 flex items-center gap-1.5 overflow-x-auto scrollbar-none text-xs">
+                  <span className="text-[11px] text-zinc-500 uppercase font-bold tracking-wider shrink-0 mr-1 hidden sm:inline">
+                    Examples:
+                  </span>
+                  {HOMEPAGE_DEMOS.map((demo) => {
+                    const isSelected = demo.id === currentDemo.id;
+                    return (
+                      <button
+                        key={demo.id}
+                        onClick={() => setCurrentDemo(demo)}
+                        className={`px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
+                          isSelected
+                            ? "bg-indigo-600 text-white shadow-sm font-semibold"
+                            : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5"
+                        }`}
+                      >
+                        {demo.title}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {/* Mock Workspace Content */}
@@ -234,7 +212,7 @@ export default function LandingPage() {
                       U
                     </div>
                     <div className="rounded-xl bg-white/[0.04] backdrop-blur-sm p-3.5 text-sm sm:text-base text-zinc-200 max-w-xl border border-white/10">
-                      Generate an interactive analytics metric card with latency, token rate, and progress badge in React & Tailwind CSS.
+                      {currentDemo.prompt}
                     </div>
                   </div>
 
@@ -244,9 +222,14 @@ export default function LandingPage() {
                     </div>
                     <div className="flex-1 min-w-0 space-y-3">
                       <div className="rounded-xl bg-white/[0.03] backdrop-blur-md p-4 text-sm sm:text-base text-zinc-200 border border-white/10 space-y-2">
-                        <p className="text-zinc-300 leading-relaxed text-sm">
-                          Here is the production-ready React component with live preview, interactive tabs, and Tailwind styling:
-                        </p>
+                        <div className="flex flex-wrap items-center justify-between gap-1 pb-1">
+                          <p className="text-zinc-300 leading-relaxed text-sm">
+                            {currentDemo.description}
+                          </p>
+                          <span className="text-[11px] text-indigo-400 font-medium">
+                            {currentDemo.title}
+                          </span>
+                        </div>
                         <LiveCodePreview code={DEMO_REACT_CODE} language="jsx" />
                       </div>
                     </div>

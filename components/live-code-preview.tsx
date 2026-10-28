@@ -158,7 +158,7 @@ function buildSandboxedDoc(sourceCode: string, language: string): string {
 
         const TargetComponent = typeof __NexoraApp !== "undefined"
           ? __NexoraApp
-          : (typeof App !== "undefined" ? App : (typeof AnalyticsCard !== "undefined" ? AnalyticsCard : (typeof Dashboard !== "undefined" ? Dashboard : null)));
+          : (typeof App !== "undefined" ? App : (typeof AnalyticsCard !== "undefined" ? AnalyticsCard : (typeof Calculator !== "undefined" ? Calculator : (typeof TaskManager !== "undefined" ? TaskManager : (typeof ShoppingCart !== "undefined" ? ShoppingCart : (typeof WeatherStation !== "undefined" ? WeatherStation : (typeof PricingCalculator !== "undefined" ? PricingCalculator : (typeof Dashboard !== "undefined" ? Dashboard : null))))))));
 
         if (TargetComponent) {
           const root = ReactDOM.createRoot(document.getElementById("root"));
