@@ -4,40 +4,34 @@ import Link from "next/link";
 import { useState } from "react";
 import { Sparkles, Menu, X, ArrowRight } from "lucide-react";
 
+import { NexoraLogo } from "@/components/nexora-logo";
+
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 glass-panel border-b border-white/5">
+    <header className="sticky top-0 z-50 home-glass-nav">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25 group-hover:scale-105 transition-transform">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div className="flex flex-col">
-            <span className="font-bold text-xl tracking-tight text-white">Nexora</span>
-            <span className="text-[10px] text-zinc-400 font-medium -mt-1 tracking-wider uppercase">
-              Multi-Model AI
-            </span>
-          </div>
+        <Link href="/" className="flex items-center gap-2 group hover:opacity-90 transition-opacity">
+          <NexoraLogo size="md" />
         </Link>
 
         {/* Desktop Nav Links */}
-        <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-zinc-300">
-          <Link href="/features" className="hover:text-white transition-colors">
+        <nav className="hidden md:flex items-center gap-8 text-[16px] font-medium text-zinc-300">
+          <Link href="/features" className="home-nav-link hover:text-white">
             Features
           </Link>
-          <Link href="/models" className="hover:text-white transition-colors">
+          <Link href="/models" className="home-nav-link hover:text-white">
             Models
           </Link>
-          <Link href="/pricing" className="hover:text-white transition-colors">
+          <Link href="/pricing" className="home-nav-link hover:text-white">
             Pricing
           </Link>
-          <Link href="/security" className="hover:text-white transition-colors">
+          <Link href="/security" className="home-nav-link hover:text-white">
             Security
           </Link>
-          <Link href="/contact" className="hover:text-white transition-colors">
+          <Link href="/contact" className="home-nav-link hover:text-white">
             Contact
           </Link>
         </nav>
@@ -46,15 +40,15 @@ export function Navbar() {
         <div className="hidden md:flex items-center gap-4">
           <Link
             href="/login"
-            className="text-sm font-medium text-zinc-300 hover:text-white transition-colors px-3 py-1.5"
+            className="text-[16px] font-medium text-zinc-300 hover:text-white transition-colors px-4 py-2"
           >
             Sign in
           </Link>
           <Link
-            href="/signup"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:from-indigo-600 hover:to-violet-700 shadow-md shadow-indigo-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            href="/app"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-base font-semibold bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:from-indigo-600 hover:to-violet-700 shadow-md shadow-indigo-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
-            Start for Free
+            Start Chatting
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
@@ -116,11 +110,11 @@ export function Navbar() {
               Sign in
             </Link>
             <Link
-              href="/signup"
+              href="/app"
               onClick={() => setMobileMenuOpen(false)}
               className="text-center py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 text-white shadow-lg"
             >
-              Start for Free
+              Start Chatting
             </Link>
           </div>
         </div>

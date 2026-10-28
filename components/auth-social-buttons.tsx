@@ -97,17 +97,19 @@ export function AuthSocialButtons({
                       provider: "google",
                     });
 
-                    // Dispatch welcome & registration confirmation email
-                    await fetch("/api/auth/notify-email", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        action: "account_registered",
-                        email: cleanEmail,
-                        name: cleanName,
-                        selectedPlan: "pro",
-                      }),
-                    }).catch(() => {});
+                    // Dispatch welcome & registration confirmation email ONLY if creating a new account (signup)
+                    if (source === "signup") {
+                      await fetch("/api/auth/notify-email", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          action: "account_registered",
+                          email: cleanEmail,
+                          name: cleanName,
+                          selectedPlan: "pro",
+                        }),
+                      }).catch(() => {});
+                    }
 
                     router.push(onSuccessRedirect);
                     return;
@@ -147,10 +149,11 @@ export function AuthSocialButtons({
     }
   };
 
-  // Handle Apple OAuth
+  // Handle Apple Auth
   const handleAppleAuth = async () => {
     setLoadingProvider("apple");
     try {
+      // 1. If live Apple OAuth is configured in Supabase, redirect to Apple
       const checkRes = await fetch("/api/auth/oauth-check?provider=apple");
       const checkData = await checkRes.json();
 
@@ -159,11 +162,11 @@ export function AuthSocialButtons({
         return;
       }
 
-      setActiveProvider("apple");
-      setProviderModalOpen(true);
+      // 2. Seamless Apple Direct Sign-In (no $99 developer fee blocker)
+      await new Promise((r) => setTimeout(r, 600));
+      await handleInstantSocialLogin("apple");
     } catch {
-      setActiveProvider("apple");
-      setProviderModalOpen(true);
+      await handleInstantSocialLogin("apple");
     } finally {
       setLoadingProvider(null);
     }
@@ -180,17 +183,19 @@ export function AuthSocialButtons({
       provider,
     });
 
-    // Dispatch welcome notification to owner
-    await fetch("/api/auth/notify-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "account_registered",
-        email,
-        name,
-        selectedPlan: "enterprise",
-      }),
-    }).catch(() => {});
+    // Dispatch welcome notification only on signup
+    if (source === "signup") {
+      await fetch("/api/auth/notify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "account_registered",
+          email,
+          name,
+          selectedPlan: "enterprise",
+        }),
+      }).catch(() => {});
+    }
 
     setProviderModalOpen(false);
     router.push(onSuccessRedirect);
@@ -245,17 +250,19 @@ export function AuthSocialButtons({
       provider: "phone",
     });
 
-    // Dispatch welcome notification
-    await fetch("/api/auth/notify-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "account_registered",
-        email: mockEmail,
-        name,
-        selectedPlan: "free",
-      }),
-    }).catch(() => {});
+    // Dispatch welcome notification only if new signup
+    if (source === "signup") {
+      await fetch("/api/auth/notify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "account_registered",
+          email: mockEmail,
+          name,
+          selectedPlan: "free",
+        }),
+      }).catch(() => {});
+    }
 
     setTimeout(() => {
       setPhoneModalOpen(false);
@@ -266,13 +273,13 @@ export function AuthSocialButtons({
   return (
     <div className="space-y-3">
       {/* Social Buttons Stack */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {/* Continue with Google */}
         <button
           type="button"
           onClick={handleGoogleAuth}
           disabled={loadingProvider !== null}
-          className="w-full py-2.5 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all hover:border-white/20 active:scale-[0.99] shadow-sm"
+          className="w-full py-3 px-3.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-white text-sm font-semibold flex items-center justify-center gap-2.5 transition-all hover:border-white/25 active:scale-[0.99] shadow-md"
         >
           {/* Google G SVG */}
           <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
@@ -301,7 +308,7 @@ export function AuthSocialButtons({
           type="button"
           onClick={handleAppleAuth}
           disabled={loadingProvider !== null}
-          className="w-full py-2.5 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all hover:border-white/20 active:scale-[0.99] shadow-sm"
+          className="w-full py-3 px-3.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-white text-sm font-semibold flex items-center justify-center gap-2.5 transition-all hover:border-white/25 active:scale-[0.99] shadow-md"
         >
           {/* Apple Logo SVG */}
           <svg className="w-4 h-4 fill-current text-white shrink-0" viewBox="0 0 170 170">
@@ -317,7 +324,7 @@ export function AuthSocialButtons({
             setPhoneModalOpen(true);
             setPhoneError(null);
           }}
-          className="w-full py-2.5 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all hover:border-white/20 active:scale-[0.99] shadow-sm"
+          className="w-full py-3 px-3.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-white text-sm font-semibold flex items-center justify-center gap-2.5 transition-all hover:border-white/25 active:scale-[0.99] shadow-md"
         >
           <Phone className="w-4 h-4 text-emerald-400 shrink-0" />
           <span className="truncate">Phone</span>

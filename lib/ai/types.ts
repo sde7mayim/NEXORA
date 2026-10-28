@@ -42,7 +42,7 @@ export interface NexoraModelVersion {
   versionMinor: number;
   versionPatch: number;
   versionLabel: string;
-  status: "published" | "deprecated" | "disabled";
+  status: "draft" | "testing" | "published" | "deprecated" | "retired" | "disabled";
   capabilities: ModelCapabilities;
   publishedAt: string;
 }
@@ -85,7 +85,7 @@ export interface ChatCompletionRequest {
   fileContexts?: string[];
   userId: string;
   orgId?: string;
-  userPlanId: "free" | "pro" | "enterprise";
+  userPlanId: "free" | "pro" | "family" | "enterprise";
 }
 
 export interface ChatChunk {

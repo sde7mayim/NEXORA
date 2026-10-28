@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Check, Copy, Terminal } from "lucide-react";
+import { LiveCodePreview } from "@/components/live-code-preview";
 
 interface MarkdownRendererProps {
   content: string;
@@ -14,7 +15,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   const parts = content.split(/(```[\s\S]*?```)/g);
 
   return (
-    <div className="space-y-3 text-sm text-zinc-200 leading-relaxed break-words font-sans">
+    <div className="space-y-4 text-chat-body text-zinc-100 leading-relaxed break-words [overflow-wrap:anywhere] font-sans selection:bg-indigo-500/30 min-w-0 max-w-full">
       {parts.map((part, index) => {
         if (part.startsWith("```") && part.endsWith("```")) {
           // Extract language and code content
@@ -22,7 +23,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
           const language = match ? match[1] || "text" : "text";
           const code = match ? match[2] : part.slice(3, -3);
 
-          return <CodeBlock key={index} code={code} language={language} />;
+          return <LiveCodePreview key={index} code={code} language={language} />;
         }
 
         // Standard text lines with inline markdown and table parser
@@ -42,34 +43,34 @@ function CodeBlock({ code, language }: { code: string; language: string }) {
   };
 
   return (
-    <div className="rounded-xl overflow-hidden border border-white/10 bg-slate-950 my-3 shadow-lg">
-      <div className="px-4 py-2 bg-slate-900 border-b border-white/5 flex items-center justify-between text-xs text-zinc-400">
-        <div className="flex items-center gap-2">
-          <Terminal className="w-3.5 h-3.5 text-indigo-400" />
-          <span className="font-mono uppercase text-[10px] tracking-wider text-zinc-300 font-bold">
+    <div className="rounded-2xl overflow-hidden border border-white/10 bg-slate-950 my-4 shadow-xl min-w-0 max-w-full">
+      <div className="px-4 py-3 bg-slate-900 border-b border-white/5 flex items-center justify-between text-sm text-zinc-300">
+        <div className="flex items-center gap-2 min-w-0">
+          <Terminal className="w-4 h-4 text-indigo-400 shrink-0" />
+          <span className="font-mono uppercase text-sm tracking-wider text-zinc-200 font-bold truncate">
             {language}
           </span>
         </div>
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1.5 text-[11px] text-zinc-400 hover:text-white transition-colors p-1"
+          className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white transition-colors px-2 py-1 rounded-lg hover:bg-white/5 shrink-0"
           title="Copy code"
         >
           {copied ? (
             <>
-              <Check className="w-3.5 h-3.5 text-emerald-400" />
+              <Check className="w-4 h-4 text-emerald-400 shrink-0" />
               <span className="text-emerald-400 font-medium">Copied!</span>
             </>
           ) : (
             <>
-              <Copy className="w-3.5 h-3.5" />
+              <Copy className="w-4 h-4 shrink-0" />
               <span>Copy</span>
             </>
           )}
         </button>
       </div>
-      <div className="p-4 overflow-x-auto font-mono text-xs text-zinc-200 leading-relaxed">
-        <pre>{code}</pre>
+      <div className="p-4 md:p-5 overflow-x-auto font-mono text-[15px] text-zinc-200 leading-relaxed max-w-full overscroll-x-contain">
+        <pre className="overflow-x-auto whitespace-pre font-mono">{code}</pre>
       </div>
     </div>
   );
@@ -97,14 +98,14 @@ function TableBlock({ lines }: { lines: string[] }) {
   const rows = validLines.slice(bodyStartIndex).filter((l) => !isSeparator(l)).map(parseCells);
 
   return (
-    <div className="my-4 overflow-x-auto rounded-xl border border-white/10 bg-zinc-950/70 shadow-md">
-      <table className="w-full border-collapse text-left text-xs md:text-sm">
+    <div className="my-5 overflow-x-auto rounded-xl border border-white/10 bg-zinc-950/70 shadow-md min-w-0 max-w-full overscroll-x-contain">
+      <table className="w-full border-collapse text-left text-sm md:text-base">
         <thead className="bg-zinc-900 border-b border-white/10 text-zinc-200">
           <tr>
             {headers.map((h, idx) => (
               <th
                 key={idx}
-                className="px-4 py-2.5 font-semibold text-zinc-100 uppercase tracking-wider text-[11px] md:text-xs whitespace-nowrap bg-white/[0.03]"
+                className="px-4 py-3 font-semibold text-zinc-100 uppercase tracking-wider text-xs md:text-sm whitespace-nowrap bg-white/[0.03]"
               >
                 {renderInlineFormatting(h)}
               </th>
@@ -118,7 +119,7 @@ function TableBlock({ lines }: { lines: string[] }) {
               className="hover:bg-white/[0.02] transition-colors even:bg-zinc-900/30"
             >
               {row.map((cell, cIdx) => (
-                <td key={cIdx} className="px-4 py-2.5 leading-relaxed align-top">
+                <td key={cIdx} className="px-4 py-3 leading-relaxed align-top">
                   {renderInlineFormatting(cell)}
                 </td>
               ))}
@@ -176,37 +177,37 @@ function TextBlock({ text }: { text: string }) {
 
       if (level === 1) {
         elements.push(
-          <h1 key={`h1_${i}`} className="text-xl md:text-2xl font-bold text-white pt-3 pb-1 border-b border-white/10 tracking-tight">
+          <h1 key={`h1_${i}`} className="text-3xl md:text-4xl font-extrabold text-white pt-5 pb-2.5 border-b border-white/10 tracking-tight">
             {content}
           </h1>
         );
       } else if (level === 2) {
         elements.push(
-          <h2 key={`h2_${i}`} className="text-lg md:text-xl font-bold text-white pt-3 pb-1 tracking-tight">
+          <h2 key={`h2_${i}`} className="text-2xl md:text-[28px] font-bold text-white pt-4 pb-2 tracking-tight">
             {content}
           </h2>
         );
       } else if (level === 3) {
         elements.push(
-          <h3 key={`h3_${i}`} className="text-base md:text-lg font-semibold text-zinc-100 pt-2.5 pb-0.5">
+          <h3 key={`h3_${i}`} className="text-xl md:text-2xl font-bold text-zinc-100 pt-3.5 pb-1.5">
             {content}
           </h3>
         );
       } else if (level === 4) {
         elements.push(
-          <h4 key={`h4_${i}`} className="text-sm md:text-base font-semibold text-zinc-200 pt-2 pb-0.5">
+          <h4 key={`h4_${i}`} className="text-lg md:text-xl font-semibold text-zinc-200 pt-3 pb-1">
             {content}
           </h4>
         );
       } else if (level === 5) {
         elements.push(
-          <h5 key={`h5_${i}`} className="text-xs md:text-sm font-semibold uppercase tracking-wider text-zinc-300 pt-1.5 pb-0.5">
+          <h5 key={`h5_${i}`} className="text-base md:text-lg font-semibold uppercase tracking-wider text-zinc-300 pt-2.5 pb-1">
             {content}
           </h5>
         );
       } else {
         elements.push(
-          <h6 key={`h6_${i}`} className="text-xs font-semibold uppercase tracking-wider text-zinc-400 pt-1 pb-0.5">
+          <h6 key={`h6_${i}`} className="text-sm md:text-base font-semibold uppercase tracking-wider text-zinc-400 pt-2 pb-0.5">
             {content}
           </h6>
         );
@@ -218,9 +219,9 @@ function TextBlock({ text }: { text: string }) {
     const bulletMatch = trimmed.match(/^([-*+])\s+(.*)$/);
     if (bulletMatch) {
       elements.push(
-        <div key={`li_${i}`} className="flex items-start gap-2.5 my-1 pl-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-2 shrink-0 shadow-sm shadow-indigo-500/50" />
-          <span className="text-zinc-300 text-sm leading-relaxed">{renderInlineFormatting(bulletMatch[2])}</span>
+        <div key={`li_${i}`} className="flex items-start gap-3 my-2 pl-1">
+          <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 mt-2 shrink-0 shadow-sm shadow-indigo-500/50" />
+          <span className="text-zinc-100 text-[17px] md:text-[18px] leading-[1.68]">{renderInlineFormatting(bulletMatch[2])}</span>
         </div>
       );
       continue;
@@ -230,11 +231,11 @@ function TextBlock({ text }: { text: string }) {
     const orderedMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
     if (orderedMatch) {
       elements.push(
-        <div key={`oli_${i}`} className="flex items-start gap-2.5 my-1.5 pl-1">
-          <span className="font-mono text-xs font-semibold text-indigo-400 shrink-0 mt-0.5 min-w-[1.25rem]">
+        <div key={`oli_${i}`} className="flex items-start gap-3 my-2 pl-1">
+          <span className="font-mono text-base font-bold text-indigo-400 shrink-0 mt-0.5 min-w-[1.75rem]">
             {orderedMatch[1]}.
           </span>
-          <span className="text-zinc-300 text-sm leading-relaxed">{renderInlineFormatting(orderedMatch[2])}</span>
+          <span className="text-zinc-100 text-[17px] md:text-[18px] leading-[1.68]">{renderInlineFormatting(orderedMatch[2])}</span>
         </div>
       );
       continue;
@@ -245,7 +246,7 @@ function TextBlock({ text }: { text: string }) {
       elements.push(
         <blockquote
           key={`bq_${i}`}
-          className="pl-3.5 py-1.5 border-l-2 border-indigo-400/80 bg-indigo-500/5 rounded-r-lg text-zinc-300 italic text-sm my-2"
+          className="pl-4 py-2.5 border-l-3 border-indigo-400/80 bg-indigo-500/10 rounded-r-xl text-zinc-200 italic text-[17px] leading-[1.65] my-3"
         >
           {renderInlineFormatting(trimmed.substring(2))}
         </blockquote>
@@ -255,7 +256,7 @@ function TextBlock({ text }: { text: string }) {
 
     // Standard paragraph line
     elements.push(
-      <p key={`p_${i}`} className="text-zinc-300 leading-relaxed text-sm">
+      <p key={`p_${i}`} className="text-zinc-100 text-[17px] md:text-[18px] leading-[1.68]">
         {renderInlineFormatting(line)}
       </p>
     );
@@ -286,7 +287,7 @@ export function renderInlineFormatting(str: string): React.ReactNode {
       return (
         <code
           key={index}
-          className="px-1.5 py-0.5 rounded-md bg-zinc-800 text-indigo-300 font-mono text-[12px] border border-white/10 shadow-sm"
+          className="px-2 py-0.5 rounded-md bg-zinc-800/90 text-indigo-300 font-mono text-[14.5px] border border-white/10 shadow-sm"
         >
           {part.slice(1, -1)}
         </code>

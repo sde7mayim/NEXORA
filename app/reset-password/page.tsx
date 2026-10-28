@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Sparkles, ArrowRight, Lock, CheckCircle2, AlertCircle, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { SavedAccountManager } from "@/lib/auth/saved-accounts";
+import { NexoraLogo } from "@/components/nexora-logo";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -164,11 +165,8 @@ export default function ResetPasswordPage() {
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-indigo-600/10 blur-[100px] rounded-full pointer-events-none" />
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 text-center">
-        <Link href="/" className="inline-flex items-center gap-2 group mb-4">
-          <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30 group-hover:scale-105 transition-transform">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <span className="font-bold text-2xl text-white">Nexora</span>
+        <Link href="/" className="inline-flex items-center gap-2 group mb-4 hover:opacity-90 transition-opacity">
+          <NexoraLogo size="lg" />
         </Link>
         <h2 className="text-2xl font-bold tracking-tight text-white">Choose a new password</h2>
         <p className="mt-2 text-xs text-zinc-400">

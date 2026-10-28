@@ -2,6 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  cleanDistDir: false,
 };
 
 export default nextConfig;

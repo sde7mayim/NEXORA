@@ -79,4 +79,40 @@ describe("Conversation Management & Persistence Store", () => {
     expect(updated?.messages.length).toBe(1);
     expect(updated?.title).toContain("Explain distributed consensus");
   });
+
+  it("should strictly isolate conversations between different user accounts", () => {
+    const userA = "joshua@gmail.com";
+    const userB = "alice@company.com";
+
+    // User A creates a private conversation
+    const convA = ConversationStore.createConversation("Joshua Private Financial Model", "nexora-core", userA);
+    ConversationStore.saveMessage(convA.id, {
+      id: "msg-user-a-1",
+      role: "user",
+      content: "Confidential revenue analysis for Q3",
+      createdAt: new Date().toISOString(),
+    }, userA);
+
+    // Verify User A has their conversation
+    const listA = ConversationStore.getConversations(userA);
+    expect(listA.some((c) => c.id === convA.id)).toBe(true);
+
+    // User B must NOT see User A's conversation in their list
+    const listB = ConversationStore.getConversations(userB);
+    expect(listB.some((c) => c.id === convA.id)).toBe(false);
+    expect(listB.some((c) => c.title.includes("Joshua Private"))).toBe(false);
+
+    // User B cannot get User A's conversation by ID
+    const convBAttempt = ConversationStore.getConversation(convA.id, userB);
+    expect(convBAttempt).toBeUndefined();
+
+    // User B creates their own conversation
+    const convB = ConversationStore.createConversation("Alice Marketing Plan", "nexora-swift", userB);
+    const updatedListB = ConversationStore.getConversations(userB);
+    expect(updatedListB.some((c) => c.id === convB.id)).toBe(true);
+
+    // User A must NOT see User B's conversation
+    const updatedListA = ConversationStore.getConversations(userA);
+    expect(updatedListA.some((c) => c.id === convB.id)).toBe(false);
+  });
 });

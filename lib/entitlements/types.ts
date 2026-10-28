@@ -1,4 +1,4 @@
-export type PlanTier = "free" | "pro" | "enterprise";
+export type PlanTier = "free" | "pro" | "family" | "enterprise";
 
 export interface PlanConfig {
   id: PlanTier;
@@ -13,6 +13,8 @@ export interface PlanConfig {
   retentionDays: number;
   supportsTeams: boolean;
   prioritySupport: boolean;
+  maxMembers?: number;
+  purchaseEnabled?: boolean;
 }
 
 export const PLAN_CONFIGS: Record<PlanTier, PlanConfig> = {
@@ -29,6 +31,8 @@ export const PLAN_CONFIGS: Record<PlanTier, PlanConfig> = {
     retentionDays: 30,
     supportsTeams: false,
     prioritySupport: false,
+    maxMembers: 1,
+    purchaseEnabled: true,
   },
   pro: {
     id: "pro",
@@ -43,6 +47,24 @@ export const PLAN_CONFIGS: Record<PlanTier, PlanConfig> = {
     retentionDays: 365,
     supportsTeams: false,
     prioritySupport: true,
+    maxMembers: 1,
+    purchaseEnabled: true,
+  },
+  family: {
+    id: "family",
+    displayName: "Family Workspace",
+    priceINR: 2999, // Configurable placeholder
+    priceUSD: 39,
+    dailyMessageLimit: 300,
+    monthlyMessageLimit: 6000,
+    monthlyResearchLimit: 200,
+    maxFileSizeMB: 50,
+    maxStorageMB: 4096, // 4 GB shared storage
+    retentionDays: 365,
+    supportsTeams: true,
+    maxMembers: 5,
+    prioritySupport: true,
+    purchaseEnabled: false, // Requirement: Prevent purchase until final pricing approved
   },
   enterprise: {
     id: "enterprise",
@@ -57,6 +79,8 @@ export const PLAN_CONFIGS: Record<PlanTier, PlanConfig> = {
     retentionDays: 730,
     supportsTeams: true,
     prioritySupport: true,
+    maxMembers: 50,
+    purchaseEnabled: true,
   },
 };
 

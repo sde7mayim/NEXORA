@@ -25,57 +25,80 @@ import {
   BookOpen,
   Cpu,
   Code2,
+  PanelLeftClose,
+  PanelLeftOpen,
+  ShieldCheck,
+  Users,
 } from "lucide-react";
 import { getAppVersionDisplay } from "@/lib/version";
 import { createClient } from "@/lib/supabase/client";
 import { SavedAccountManager } from "@/lib/auth/saved-accounts";
+import { NexoraLogo } from "@/components/nexora-logo";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [userPlan, setUserPlan] = useState<"free" | "pro" | "enterprise">("enterprise");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [userPlan, setUserPlan] = useState<"free" | "pro" | "family" | "enterprise">("enterprise");
   const [currentWorkspace, setCurrentWorkspace] = useState("Acme Corp AI Labs");
   const [workspaceDropdownOpen, setWorkspaceDropdownOpen] = useState(false);
   const [userName, setUserName] = useState<string>("");
   const [userEmail, setUserEmail] = useState<string>("");
   const [avatarInitial, setAvatarInitial] = useState<string>("U");
 
+  const isOwner =
+    userEmail.toLowerCase().trim() === "thzcreterz05@gmail.com" ||
+    userEmail.toLowerCase().trim() === "sde7mayim@gmail.com";
+
   useEffect(() => {
     const loadProfile = async () => {
       const applyIdentity = (email: string, rawName?: string) => {
         const clean = email.toLowerCase().trim();
-        const isOwner = clean === "thzcreterz05@gmail.com";
-        const finalName = isOwner ? "Joshua Suriyan" : (rawName || clean.split("@")[0]);
+        const isOwnerAccount = clean === "thzcreterz05@gmail.com" || clean === "sde7mayim@gmail.com";
+        const finalName = rawName || clean.split("@")[0];
         setUserEmail(clean);
         setUserName(finalName);
         setAvatarInitial(finalName[0].toUpperCase());
-        if (isOwner) {
+        if (isOwnerAccount) {
           setUserPlan("enterprise");
         }
       };
 
       // 1. Immediately read remembered account from storage
       const remembered = SavedAccountManager.getRememberedAccount();
-      if (remembered?.email) {
-        applyIdentity(remembered.email, remembered.name);
+      const activeLoginEmail = remembered?.email ? remembered.email.toLowerCase().trim() : null;
+
+      if (activeLoginEmail) {
+        applyIdentity(activeLoginEmail, remembered?.name);
       }
 
       // 2. Cross-reference with Supabase active session
       try {
         const supabase = createClient();
         const { data } = await supabase.auth.getUser();
-        if (data.user?.email) {
-          const name = data.user.user_metadata?.full_name || data.user.email.split("@")[0];
-          applyIdentity(data.user.email, name);
-          SavedAccountManager.saveAccount({ email: data.user.email, name });
-        } else if (!remembered?.email) {
+        const supaEmail = data.user?.email ? data.user.email.toLowerCase().trim() : null;
+
+        if (activeLoginEmail) {
+          // If Supabase has an old lingering session from a previous different account, sign it out
+          if (supaEmail && supaEmail !== activeLoginEmail) {
+            console.log(`[Auth] Stale Supabase session (${supaEmail}) differs from active user (${activeLoginEmail}). Signing out.`);
+            await supabase.auth.signOut().catch(() => {});
+          }
+          applyIdentity(activeLoginEmail, remembered?.name);
+        } else if (supaEmail) {
+          const name = data.user?.user_metadata?.full_name || supaEmail.split("@")[0];
+          applyIdentity(supaEmail, name);
+          SavedAccountManager.saveAccount({ email: supaEmail, name });
+        } else {
           setUserEmail("guest@nexora.ai");
           setUserName("Nexora User");
           setAvatarInitial("N");
         }
       } catch {
-        if (!remembered?.email) {
+        if (activeLoginEmail) {
+          applyIdentity(activeLoginEmail, remembered?.name);
+        } else {
           setUserEmail("guest@nexora.ai");
           setUserName("Nexora User");
           setAvatarInitial("N");
@@ -83,10 +106,40 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       }
     };
     loadProfile();
+
+    // Auto-collapse sidebar on tablet viewports (768px - 1023px) to prevent screen squeezing
+    const handleResize = () => {
+      if (typeof window !== "undefined") {
+        if (window.innerWidth >= 768 && window.innerWidth < 1024) {
+          setSidebarCollapsed(true);
+        }
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // Lock body scroll and listen for Escape key when mobile drawer is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden";
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") setMobileOpen(false);
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.body.style.overflow = "";
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    } else {
+      document.body.style.overflow = "";
+    }
+  }, [mobileOpen]);
 
   const handleSignOut = async () => {
     try {
+      SavedAccountManager.clearRememberedAccount();
       const supabase = createClient();
       await supabase.auth.signOut().catch(() => {});
     } catch {}
@@ -94,21 +147,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   };
 
   const navigation = [
-    { name: "New Chat", href: "/app", icon: Plus, highlight: true },
-    { name: "Conversations", href: "/app/chat", icon: MessageSquare },
-    { name: "Knowledge Hub", href: "/app/knowledge", icon: BookOpen },
-    { name: "AI Workflows", href: "/app/workflows", icon: Cpu },
-    { name: "Models Directory", href: "/app/models", icon: Layers },
-    { name: "File Library", href: "/app/files", icon: FolderOpen },
+    { name: "Chat", href: "/app", icon: MessageSquare },
+    { name: "Models", href: "/app/models", icon: Layers },
+    { name: "Files", href: "/app/files", icon: FolderOpen },
     { name: "Web Research", href: "/app/research", icon: Search },
-    { name: "Usage & Analytics", href: "/app/analytics", icon: BarChart2 },
-    { name: "Developer Platform", href: "/app/developer", icon: Code2 },
-    { name: "Diagnostics & Ops", href: "/app/diagnostics", icon: Activity },
-    { name: "Quality Evaluations", href: "/app/evaluations", icon: Award },
-    { name: "Enterprise Workspace", href: "/app/enterprise", icon: Building2 },
     { name: "Billing & Plans", href: "/app/billing", icon: CreditCard },
     { name: "Settings", href: "/app/settings", icon: Settings },
-    { name: "Help & Support", href: "/contact", icon: HelpCircle },
+    ...(isOwner
+      ? [{ name: "Admin Console", href: "/app/admin", icon: ShieldCheck, badge: "Owner" }]
+      : []),
   ];
 
   return (
@@ -116,104 +163,80 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* ==================================================================== */}
       {/* DESKTOP SIDEBAR                                                      */}
       {/* ==================================================================== */}
-      <aside className="hidden md:flex flex-col w-64 border-r border-white/5 bg-slate-950/95 p-4 justify-between">
+      <aside
+        className={`hidden md:flex flex-col transition-all duration-200 border-r border-white/5 bg-slate-950/95 p-3.5 justify-between ${
+          sidebarCollapsed ? "w-18" : "w-64"
+        }`}
+      >
         <div className="space-y-4">
-          {/* Brand & Workspace Switcher */}
+          {/* Brand & Collapse Control */}
           <div className="space-y-2 pb-3 border-b border-white/5">
             <div className="flex items-center justify-between">
-              <Link href="/" className="flex items-center gap-2 group">
-                <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-600/30">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <span className="font-bold text-base text-white">Nexora</span>
+              <Link href="/" className="flex items-center gap-2 group hover:opacity-90 transition-opacity">
+                <NexoraLogo size="sm" showText={!sidebarCollapsed} />
               </Link>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                {userPlan}
-              </span>
-            </div>
-
-            {/* Interactive Workspace Dropdown */}
-            <div className="relative">
               <button
-                onClick={() => setWorkspaceDropdownOpen(!workspaceDropdownOpen)}
-                className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-900/80 hover:bg-slate-900 border border-white/5 text-xs text-left transition-colors"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                className="p-1 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/5 transition-colors"
+                title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                aria-label="Toggle sidebar collapse"
               >
-                <div className="flex items-center gap-2 truncate">
-                  <Building2 className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                  <span className="font-medium text-white truncate">{currentWorkspace}</span>
-                </div>
-                <ChevronDown className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                {sidebarCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
               </button>
-
-              {workspaceDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 z-50 p-1.5 rounded-xl bg-slate-900 border border-white/10 shadow-xl space-y-1">
-                  <button
-                    onClick={() => {
-                      setCurrentWorkspace("Acme Corp AI Labs");
-                      setWorkspaceDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between ${
-                      currentWorkspace === "Acme Corp AI Labs"
-                        ? "bg-indigo-600 text-white font-medium"
-                        : "text-zinc-300 hover:bg-white/5"
-                    }`}
-                  >
-                    <span>Acme Corp AI Labs</span>
-                    <span className="text-[10px] opacity-75 font-mono">Owner</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setCurrentWorkspace("Personal Workspace");
-                      setWorkspaceDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between ${
-                      currentWorkspace === "Personal Workspace"
-                        ? "bg-indigo-600 text-white font-medium"
-                        : "text-zinc-300 hover:bg-white/5"
-                    }`}
-                  >
-                    <span>Personal Workspace</span>
-                    <span className="text-[10px] opacity-75 font-mono">Free</span>
-                  </button>
-                  <Link
-                    href="/app/enterprise"
-                    onClick={() => setWorkspaceDropdownOpen(false)}
-                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 text-indigo-400 hover:bg-indigo-500/10 font-medium"
-                  >
-                    <Plus className="w-3 h-3" />
-                    <span>Create / Manage Workspaces</span>
-                  </Link>
-                </div>
-              )}
             </div>
+
+            {!sidebarCollapsed && (
+              <div className="flex items-center justify-between px-1 pt-1.5 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="font-semibold text-zinc-300 capitalize">{userPlan} Workspace</span>
+                </div>
+                {isOwner && (
+                  <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/15 px-2 py-0.5 rounded-md border border-indigo-500/25">
+                    Owner
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* New Chat Primary Action */}
           <Link
             href="/app"
-            className="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-xs font-semibold flex items-center gap-2 shadow-md shadow-indigo-600/20 transition-all hover:scale-[1.01]"
+            title="New Conversation"
+            className="shimmer-btn w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-base font-semibold flex items-center justify-center gap-2.5 shadow-lg shadow-indigo-600/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
-            <Plus className="w-4 h-4" />
-            <span>New Conversation</span>
+            <Plus className="w-5 h-5 shrink-0" />
+            {!sidebarCollapsed && <span>New Conversation</span>}
           </Link>
 
-          {/* Navigation Items */}
-          <nav className="space-y-1 text-xs">
-            {navigation.slice(1).map((item) => {
+          {/* Clean Streamlined Navigation Items */}
+          <nav className="space-y-1.5 text-ui-nav">
+            {navigation.map((item) => {
               const active = pathname === item.href;
               const Icon = item.icon;
               return (
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-xl font-medium transition-colors ${
+                  title={item.name}
+                  className={`flex items-center ${
+                    sidebarCollapsed ? "justify-center px-2.5 py-3" : "justify-between px-3.5 py-3"
+                  } rounded-2xl font-medium text-[15.5px] transition-all duration-150 ${
                     active
-                      ? "bg-white/10 text-white font-semibold"
-                      : "text-zinc-400 hover:text-white hover:bg-white/5"
+                      ? "bg-indigo-600/15 text-white font-semibold shadow-sm border border-indigo-500/30"
+                      : "text-zinc-300 hover:text-white hover:bg-white/5"
                   }`}
                 >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  <span>{item.name}</span>
+                  <div className="flex items-center gap-3">
+                    <Icon className="w-5 h-5 shrink-0" />
+                    {!sidebarCollapsed && <span>{item.name}</span>}
+                  </div>
+                  {!sidebarCollapsed && (item as any).badge && (
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                      {(item as any).badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -222,27 +245,33 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* User Card & Version info */}
         <div className="pt-4 border-t border-white/5 space-y-3">
-          <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 border border-white/5">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-7 h-7 rounded-lg bg-indigo-600/30 border border-indigo-500/30 flex items-center justify-center text-indigo-300 text-xs font-bold shrink-0">
+          <div className={`flex items-center ${sidebarCollapsed ? "justify-center p-2" : "justify-between p-3"} rounded-2xl bg-slate-900/60 border border-white/5`}>
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-indigo-600/30 border border-indigo-500/35 flex items-center justify-center text-indigo-300 text-base font-bold shrink-0">
                 {avatarInitial}
               </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-xs font-medium text-white truncate">{userName}</span>
-                <span className="text-[10px] text-zinc-500 truncate">{userEmail}</span>
-              </div>
+              {!sidebarCollapsed && (
+                <div className="flex flex-col min-w-0">
+                  <span className="text-base font-semibold text-white truncate">{userName}</span>
+                  <span className="text-xs text-zinc-400 truncate">{userEmail}</span>
+                </div>
+              )}
             </div>
-            <button
-              onClick={handleSignOut}
-              title="Sign out"
-              className="text-zinc-500 hover:text-rose-400 p-1 rounded-lg transition-colors"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
+            {!sidebarCollapsed && (
+              <button
+                onClick={handleSignOut}
+                title="Sign out"
+                className="text-zinc-400 hover:text-rose-400 p-2 rounded-xl transition-colors hover:bg-white/5"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
           </div>
-          <div className="text-[10px] text-zinc-600 text-center font-mono">
-            {getAppVersionDisplay()}
-          </div>
+          {!sidebarCollapsed && (
+            <div className="text-xs text-zinc-500 text-center font-mono">
+              {getAppVersionDisplay()}
+            </div>
+          )}
         </div>
       </aside>
 
@@ -250,44 +279,130 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* MOBILE DRAWER & HEADER                                               */}
       {/* ==================================================================== */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Mobile Header Bar */}
-        <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-white/5 bg-slate-950">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
-              <Sparkles className="w-3.5 h-3.5" />
-            </div>
-            <span className="font-bold text-sm text-white">Nexora</span>
-          </Link>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/app"
-              className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-xs font-medium flex items-center gap-1"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Chat</span>
+        {/* Mobile Header Bar - Rendered on subpages. /app provides its own unified mobile topbar */}
+        {pathname !== "/app" && (
+          <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-white/10 glass-topbar z-30 shrink-0">
+            <Link href="/app" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+              <NexoraLogo size="xs" />
             </Link>
-            <button
-              onClick={() => setMobileOpen(!mobileOpen)}
-              className="p-1.5 text-zinc-400 hover:text-white"
-            >
-              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-          </div>
-        </header>
-
-        {mobileOpen && (
-          <div className="md:hidden glass-panel border-b border-white/10 p-4 space-y-2 z-50">
-            {navigation.map((item) => (
+            <div className="flex items-center gap-2">
               <Link
-                key={item.name}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
-                className="flex items-center gap-2.5 py-2 px-3 rounded-lg text-sm text-zinc-300 hover:text-white"
+                href="/app"
+                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-indigo-600/20 active:scale-95 transition-all"
               >
-                <item.icon className="w-4 h-4" />
-                <span>{item.name}</span>
+                <Plus className="w-3.5 h-3.5" />
+                <span>New</span>
               </Link>
-            ))}
+              <button
+                onClick={() => setMobileOpen(!mobileOpen)}
+                aria-expanded={mobileOpen}
+                aria-label="Toggle navigation menu"
+                className="p-2 text-zinc-300 hover:text-white rounded-xl hover:bg-white/10 transition-colors"
+              >
+                {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
+            </div>
+          </header>
+        )}
+
+        {/* Accessible Mobile Drawer Overlay */}
+        {mobileOpen && (
+          <div className="md:hidden fixed inset-0 z-50 flex">
+            {/* Backdrop */}
+            <div
+              onClick={() => setMobileOpen(false)}
+              className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
+              aria-hidden="true"
+            />
+
+            {/* Slide-over Drawer Panel */}
+            <div className="relative w-72 max-w-[82vw] glass-drawer border-r border-white/10 p-4 flex flex-col justify-between shadow-2xl z-50 overflow-y-auto animate-in slide-in-from-left duration-250">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-white/5">
+                  <NexoraLogo size="sm" />
+                  <button
+                    onClick={() => setMobileOpen(false)}
+                    className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-white/5"
+                    aria-label="Close menu"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2 px-1 text-xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="font-semibold text-zinc-300 capitalize">{userPlan} Workspace</span>
+                  {isOwner && (
+                    <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/15 px-1.5 py-0.2 rounded border border-indigo-500/25">
+                      Owner
+                    </span>
+                  )}
+                </div>
+
+                <Link
+                  href="/app"
+                  onClick={() => setMobileOpen(false)}
+                  className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/20"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>New Conversation</span>
+                </Link>
+
+                <nav className="space-y-1 text-sm pt-1">
+                  {navigation.map((item) => {
+                    const active = pathname === item.href;
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        onClick={() => setMobileOpen(false)}
+                        className={`flex items-center justify-between px-3 py-2.5 rounded-xl font-medium transition-colors ${
+                          active
+                            ? "bg-indigo-600/20 text-white font-semibold border border-indigo-500/30"
+                            : "text-zinc-400 hover:text-white hover:bg-white/5"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Icon className="w-4 h-4 shrink-0" />
+                          <span>{item.name}</span>
+                        </div>
+                        {(item as any).badge && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                            {(item as any).badge}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </div>
+
+              {/* Mobile Drawer User Footer */}
+              <div className="pt-4 border-t border-white/5 space-y-3">
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-white/5">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-600/30 border border-indigo-500/35 flex items-center justify-center text-indigo-300 text-xs font-bold shrink-0">
+                      {avatarInitial}
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-semibold text-white truncate">{userName}</span>
+                      <span className="text-[11px] text-zinc-400 truncate">{userEmail}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleSignOut}
+                    title="Sign out"
+                    className="text-zinc-400 hover:text-rose-400 p-1.5 rounded-lg transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="text-[10px] text-zinc-500 text-center font-mono">
+                  {getAppVersionDisplay()}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
