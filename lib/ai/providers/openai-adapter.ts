@@ -1,10 +1,15 @@
 import OpenAI from "openai";
 import { AIProviderAdapter, ChatChunk, ChatCompletionResponse } from "../types";
+<<<<<<< HEAD
 import { ProviderStatusService } from "../provider-status";
+=======
+import { ProviderConfig } from "../provider-config";
+>>>>>>> 89333307460ebf8ad436d416b73f6472149b6207
 
 export class OpenAIAdapter implements AIProviderAdapter {
   providerKey = "openai" as const;
   private client: OpenAI | null = null;
+<<<<<<< HEAD
   private lastClientKey: string | null = null;
 
   private getClient(): OpenAI {
@@ -18,6 +23,21 @@ export class OpenAIAdapter implements AIProviderAdapter {
     if (!this.client || this.lastClientKey !== apiKey) {
       this.client = new OpenAI({ apiKey });
       this.lastClientKey = apiKey;
+=======
+  private cachedApiKey: string | null = null;
+
+  private getClient(): OpenAI {
+    const apiKey = ProviderConfig.getApiKey("openai");
+    if (!ProviderConfig.isRealKey(apiKey)) {
+      throw new Error(
+        "OpenAI API key is not configured. Set OPENAI_API_KEY in your local environment (.env.local) to use OpenAI foundation models."
+      );
+    }
+
+    if (!this.client || this.cachedApiKey !== apiKey) {
+      this.client = new OpenAI({ apiKey });
+      this.cachedApiKey = apiKey;
+>>>>>>> 89333307460ebf8ad436d416b73f6472149b6207
     }
 
     return this.client;
@@ -43,9 +63,15 @@ export class OpenAIAdapter implements AIProviderAdapter {
         max_tokens: options?.maxTokens ?? 2048,
       });
 
+<<<<<<< HEAD
       ProviderStatusService.recordSuccess("openai");
 
       const choice = response.choices[0];
+=======
+      const choice = response.choices[0];
+      ProviderConfig.recordSuccess("openai");
+
+>>>>>>> 89333307460ebf8ad436d416b73f6472149b6207
       return {
         id: response.id,
         content: choice.message.content || "",
@@ -56,7 +82,11 @@ export class OpenAIAdapter implements AIProviderAdapter {
         finishReason: choice.finish_reason || "stop",
       };
     } catch (err) {
+<<<<<<< HEAD
       ProviderStatusService.recordFailure("openai", err);
+=======
+      ProviderConfig.recordError("openai", err);
+>>>>>>> 89333307460ebf8ad436d416b73f6472149b6207
       throw err;
     }
   }
@@ -70,7 +100,11 @@ export class OpenAIAdapter implements AIProviderAdapter {
     try {
       client = this.getClient();
     } catch (err) {
+<<<<<<< HEAD
       ProviderStatusService.recordFailure("openai", err);
+=======
+      ProviderConfig.recordError("openai", err);
+>>>>>>> 89333307460ebf8ad436d416b73f6472149b6207
       throw err;
     }
 
@@ -89,7 +123,13 @@ export class OpenAIAdapter implements AIProviderAdapter {
         stream_options: { include_usage: true },
       });
 
+<<<<<<< HEAD
       for await (const chunk of stream) {
+=======
+      let streamedAny = false;
+      for await (const chunk of stream) {
+        streamedAny = true;
+>>>>>>> 89333307460ebf8ad436d416b73f6472149b6207
         const delta = chunk.choices[0]?.delta?.content || "";
         const isComplete =
           chunk.choices[0]?.finish_reason !== null && chunk.choices[0]?.finish_reason !== undefined;
@@ -109,9 +149,17 @@ export class OpenAIAdapter implements AIProviderAdapter {
         };
       }
 
+<<<<<<< HEAD
       ProviderStatusService.recordSuccess("openai");
     } catch (err) {
       ProviderStatusService.recordFailure("openai", err);
+=======
+      if (streamedAny) {
+        ProviderConfig.recordSuccess("openai");
+      }
+    } catch (err) {
+      ProviderConfig.recordError("openai", err);
+>>>>>>> 89333307460ebf8ad436d416b73f6472149b6207
       throw err;
     }
   }
