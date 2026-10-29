@@ -1,3 +1,22 @@
+export interface ConversationAttachment {
+  name: string;
+  size: number;
+  content?: string;
+  fileId?: string;
+  mimeType?: string;
+}
+
+export interface ConversationDocumentInfo {
+  id?: string;
+  fileName: string;
+  fileSizeBytes: number;
+  mimeType: string;
+  fullText?: string;
+  summary?: string;
+  version?: number;
+  uploadedAt?: string;
+}
+
 export interface ConversationMessage {
   id: string;
   role: "user" | "assistant" | "system";
@@ -5,7 +24,7 @@ export interface ConversationMessage {
   modelUsed?: string;
   createdAt: string;
   citations?: Array<{ title: string; url: string; snippet: string }>;
-  attachments?: Array<{ name: string; size: number }>;
+  attachments?: ConversationAttachment[];
 }
 
 export interface Conversation {
@@ -16,6 +35,7 @@ export interface Conversation {
   createdAt: string;
   updatedAt: string;
   messages: ConversationMessage[];
+  activeDocuments?: ConversationDocumentInfo[];
 }
 
 const STORAGE_PREFIX = "nexora_conversations_u_";
@@ -98,53 +118,63 @@ export class ConversationStore {
         if (!stored) {
           const defaultConv: Conversation = {
             id: "conv-default",
-            title: "Getting Started with Nexora",
+            title: "Welcome to Nexora",
             modelSelected: "nexora-core",
-            isPinned: true,
+            isPinned: false,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             messages: [
               {
-                id: "msg-init",
+                id: "msg-welcome-1",
                 role: "assistant",
                 content:
-                  "Welcome to Nexora! Your conversations and messages in this account are completely private and isolated.",
-                modelUsed: "Nexora Core 1.0",
+                  "Hello! I am **Nexora**, your multi-model AI workspace. I can help with coding, architecture, document analysis, research, and workflows. How can I assist you today?",
                 createdAt: new Date().toISOString(),
+                modelUsed: "nexora-core",
               },
             ],
+            activeDocuments: [],
           };
-          storage.setItem(key, JSON.stringify([defaultConv]));
+          this.setConversations([defaultConv], userId);
           return [defaultConv];
         }
-        return JSON.parse(stored) as Conversation[];
+
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          this.inMemoryStores.set(key, parsed);
+          return parsed;
+        }
       } catch {
-        return [];
+        // Fallback to in-memory store on storage parse error
       }
     }
 
-    if (!this.inMemoryStores.has(key) || this.inMemoryStores.get(key)!.length === 0) {
+    const inMem = this.inMemoryStores.get(key);
+    if (!inMem || inMem.length === 0) {
       const defaultConv: Conversation = {
         id: "conv-default",
-        title: "Getting Started with Nexora",
+        title: "Welcome to Nexora",
         modelSelected: "nexora-core",
-        isPinned: true,
+        isPinned: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         messages: [
           {
-            id: "msg-init",
+            id: "msg-welcome-1",
             role: "assistant",
             content:
-              "Welcome to Nexora! Your conversations and messages in this account are completely private and isolated.",
-            modelUsed: "Nexora Core 1.0",
+              "Hello! I am **Nexora**, your multi-model AI workspace. I can help with coding, architecture, document analysis, research, and workflows. How can I assist you today?",
             createdAt: new Date().toISOString(),
+            modelUsed: "nexora-core",
           },
         ],
+        activeDocuments: [],
       };
       this.inMemoryStores.set(key, [defaultConv]);
+      return [defaultConv];
     }
-    return this.inMemoryStores.get(key) || [];
+
+    return inMem;
   }
 
   private static setConversations(list: Conversation[], userId?: string): void {
@@ -185,6 +215,7 @@ export class ConversationStore {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       messages: [],
+      activeDocuments: [],
     };
 
     const updated = [newConv, ...list];
@@ -231,6 +262,65 @@ export class ConversationStore {
   }
 
   /**
+   * Registers an active document into a conversation.
+   */
+  static addDocument(
+    conversationId: string,
+    doc: ConversationDocumentInfo,
+    userId?: string
+  ): void {
+    const list = this.getConversations(userId);
+    const conv = list.find((c) => c.id === conversationId);
+    if (!conv) return;
+
+    if (!conv.activeDocuments) {
+      conv.activeDocuments = [];
+    }
+
+    // Filter out previous version if same file name
+    const lowerName = doc.fileName.toLowerCase().trim();
+    conv.activeDocuments = conv.activeDocuments.filter(
+      (d) => d.fileName.toLowerCase().trim() !== lowerName
+    );
+
+    conv.activeDocuments.push({
+      ...doc,
+      uploadedAt: doc.uploadedAt || new Date().toISOString(),
+      version: doc.version || 1,
+    });
+
+    conv.updatedAt = new Date().toISOString();
+    this.setConversations(list, userId);
+  }
+
+  /**
+   * Retrieves all active documents for a conversation.
+   */
+  static getActiveDocuments(conversationId: string, userId?: string): ConversationDocumentInfo[] {
+    const conv = this.getConversation(conversationId, userId);
+    return conv?.activeDocuments || [];
+  }
+
+  /**
+   * Removes a document from active conversation context.
+   */
+  static removeDocument(conversationId: string, documentId: string, userId?: string): boolean {
+    const list = this.getConversations(userId);
+    const conv = list.find((c) => c.id === conversationId);
+    if (!conv || !conv.activeDocuments) return false;
+
+    const initialLen = conv.activeDocuments.length;
+    conv.activeDocuments = conv.activeDocuments.filter((d) => d.id !== documentId && d.fileName !== documentId);
+
+    if (conv.activeDocuments.length !== initialLen) {
+      conv.updatedAt = new Date().toISOString();
+      this.setConversations(list, userId);
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Appends or updates a message within a conversation.
    */
   static saveMessage(
@@ -247,6 +337,28 @@ export class ConversationStore {
       conv.messages[existingIndex] = message;
     } else {
       conv.messages.push(message);
+    }
+
+    // If message contains attachments with content, track as active document
+    if (message.attachments && message.attachments.length > 0) {
+      if (!conv.activeDocuments) conv.activeDocuments = [];
+      for (const att of message.attachments) {
+        if (att.content) {
+          const lowerName = att.name.toLowerCase().trim();
+          conv.activeDocuments = conv.activeDocuments.filter(
+            (d) => d.fileName.toLowerCase().trim() !== lowerName
+          );
+          conv.activeDocuments.push({
+            id: att.fileId || `att_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            fileName: att.name,
+            fileSizeBytes: att.size || att.content.length,
+            mimeType: att.mimeType || "text/plain",
+            fullText: att.content,
+            uploadedAt: new Date().toISOString(),
+            version: 1,
+          });
+        }
+      }
     }
 
     if (conv.title === "New Conversation" && message.role === "user") {

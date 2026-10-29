@@ -2,6 +2,7 @@ import { OpenAIAdapter } from "./providers/openai-adapter";
 import { AnthropicAdapter } from "./providers/anthropic-adapter";
 import { GeminiAdapter } from "./providers/gemini-adapter";
 import { ModelRegistry } from "./model-registry";
+import { ProviderStatusService, ProviderKey } from "./provider-status";
 import { WorkspaceService } from "../workspaces/workspace-service";
 import {
   ChatChunk,
@@ -52,7 +53,7 @@ export class ModelRouter {
       }
     }
 
-    // 1. Check if selection is an external model ID directly
+    // 1. Check if selection is an external model ID directly (e.g., "anthropic:claude-3-5-sonnet")
     const directExternal = ModelRegistry.getExternalModel(selectionId);
     if (directExternal) {
       if (userPlan === "free" && directExternal.id !== "openai:gpt-4o-mini") {
@@ -60,6 +61,29 @@ export class ModelRouter {
           `Model '${directExternal.displayName}' requires a Pro or Enterprise subscription.`
         );
       }
+
+      // Check if provider key is configured on this device
+      const isConfigured = ProviderStatusService.isConfigured(directExternal.providerKey);
+      if (!isConfigured) {
+        const configuredProviders = ProviderStatusService.getConfiguredProviders();
+        const configuredNames = configuredProviders.map((p) => p === "gemini" ? "Gemini" : p === "openai" ? "OpenAI" : "Anthropic");
+        const keyName =
+          directExternal.providerKey === "anthropic"
+            ? "ANTHROPIC_API_KEY"
+            : directExternal.providerKey === "openai"
+            ? "OPENAI_API_KEY"
+            : "GEMINI_API_KEY";
+
+        const alternativeSuggestion =
+          configuredNames.length > 0
+            ? ` Configured alternatives available on this device: ${configuredNames.join(", ")}.`
+            : ` No AI provider is configured on this device.`;
+
+        throw new Error(
+          `[PROVIDER_NOT_CONFIGURED] Provider '${directExternal.providerKey}' is not configured on this device. Set ${keyName} in your .env.local file, restart Nexora, and try again.${alternativeSuggestion}`
+        );
+      }
+
       return [
         {
           externalModel: directExternal,
@@ -113,63 +137,65 @@ export class ModelRouter {
       throw new Error(`No available provider models configured for '${brandedVersion.id}'.`);
     }
 
-    const readEnv = (k: string) => {
-      try {
-        const fs = require("fs");
-        const path = require("path");
-        const envPath = path.join(process.cwd(), ".env.local");
-        if (fs.existsSync(envPath)) {
-          const content = fs.readFileSync(envPath, "utf8");
-          const m = content.match(new RegExp(`^${k}=(.*)$`, "m"));
-          if (m && m[1]) return m[1].trim().replace(/^["']|["']$/g, "");
-        }
-      } catch {}
-      return "";
-    };
-
-    const openAiVal = process.env.OPENAI_API_KEY || readEnv("OPENAI_API_KEY");
-    const anthropicVal = process.env.ANTHROPIC_API_KEY || readEnv("ANTHROPIC_API_KEY");
-    const geminiVal =
-      process.env.GEMINI_API_KEY ||
-      process.env.GOOGLE_API_KEY ||
-      readEnv("GEMINI_API_KEY") ||
-      readEnv("GOOGLE_API_KEY");
-
-    const hasOpenAI = Boolean(
-      openAiVal &&
-      !openAiVal.includes("...your-openai-key") &&
-      !openAiVal.startsWith("sk-placeholder")
-    );
-    const hasAnthropic = Boolean(
-      anthropicVal &&
-      !anthropicVal.includes("...your-anthropic-key") &&
-      !anthropicVal.startsWith("sk-ant-placeholder")
-    );
-    const hasGemini = Boolean(
-      geminiVal && !geminiVal.includes("...your-gemini-api-key")
-    );
-
-    // Prioritize providers whose API keys are configured and ready in environment
-    targets.sort((a, b) => {
-      const aReady =
-        (a.externalModel.providerKey === "gemini" && hasGemini) ||
-        (a.externalModel.providerKey === "openai" && hasOpenAI) ||
-        (a.externalModel.providerKey === "anthropic" && hasAnthropic);
-      const bReady =
-        (b.externalModel.providerKey === "gemini" && hasGemini) ||
-        (b.externalModel.providerKey === "openai" && hasOpenAI) ||
-        (b.externalModel.providerKey === "anthropic" && hasAnthropic);
-
-      if (aReady && !bReady) return -1;
-      if (!aReady && bReady) return 1;
-      return 0;
-    });
+    // Filter routes to ONLY providers that are actually configured on this machine
+    const configuredKeys = new Set(ProviderStatusService.getConfiguredProviders());
+    const configuredTargets = targets.filter((t) => configuredKeys.has(t.externalModel.providerKey));
+    const finalTargets = configuredTargets.length > 0 ? configuredTargets : targets;
 
     // Ensure top prioritized route is primary and subsequent are fallback
-    return targets.map((t, idx) => ({
+    return finalTargets.map((t, idx) => ({
       ...t,
       routeRole: idx === 0 ? "primary" : "fallback",
     }));
+  }
+
+  /**
+   * Validates whether a direct external model's provider has credentials configured.
+   */
+  static validateDirectModelConfig(selectionId: string): { valid: boolean; error?: string } {
+    const directExternal = ModelRegistry.getExternalModel(selectionId);
+    if (!directExternal) {
+      return { valid: true };
+    }
+    const isConfigured = ProviderStatusService.isConfigured(directExternal.providerKey);
+    if (!isConfigured) {
+      const keyName =
+        directExternal.providerKey === "anthropic"
+          ? "ANTHROPIC_API_KEY"
+          : directExternal.providerKey === "openai"
+          ? "OPENAI_API_KEY"
+          : "GEMINI_API_KEY";
+      return {
+        valid: false,
+        error: `Provider '${directExternal.providerKey}' is not configured on this device. Set ${keyName} in your .env.local file to use ${directExternal.displayName}.`,
+      };
+    }
+    return { valid: true };
+  }
+
+  /**
+   * Returns the best default model ID considering plan eligibility and configured providers on this machine.
+   */
+  static getDefaultModelSelection(userPlan: "free" | "pro" | "family" | "enterprise" = "free"): string {
+    const configured = ProviderStatusService.getConfiguredProviders();
+
+    // If Gemini is configured, nexora-core (which routes primarily to Gemini 1.5 Flash) is optimal
+    if (configured.includes("gemini")) {
+      return "nexora-core";
+    }
+
+    // If OpenAI is configured, nexora-core is optimal
+    if (configured.includes("openai")) {
+      return "nexora-core";
+    }
+
+    // If Anthropic is configured
+    if (configured.includes("anthropic")) {
+      return "nexora-core";
+    }
+
+    // Default baseline
+    return "nexora-core";
   }
 
   /**
@@ -219,15 +245,40 @@ export class ModelRouter {
 
   /**
    * Dispatches streaming completion with automatic fallback support.
+   * Never returns fabricated responses; reports transparent diagnostic when all fail.
    */
   static async *streamWithFallback(
     request: ChatCompletionRequest
   ): AsyncIterable<ChatChunk & { modelAttribution: string; providerKey: string }> {
-    const targets = this.resolveRoutes(request.modelSelectionId, request.userPlanId, request.orgId);
+    const targets = this.resolveRoutes(
+      request.modelSelectionId,
+      request.userPlanId || "free",
+      request.orgId
+    );
+    const configuredProviders = new Set(ProviderStatusService.getConfiguredProviders());
+
+    // Only attempt targets whose provider is genuinely configured
+    const candidateTargets = targets.filter(
+      (t) => configuredProviders.has(t.externalModel.providerKey) || targets.length === 1
+    );
+
+    if (candidateTargets.length === 0) {
+      yield {
+        id: `err_${Date.now()}`,
+        textDelta:
+          "[AI Provider Notice: No AI provider is configured on this device. Add a supported provider API key (OPENAI_API_KEY, ANTHROPIC_API_KEY, or GEMINI_API_KEY) to your .env.local file, restart Nexora, and try again.]",
+        isComplete: true,
+        finishReason: "stop",
+        modelAttribution: "Nexora System Notice",
+        providerKey: "gemini",
+      };
+      return;
+    }
 
     let lastError: Error | null = null;
+    const attemptedFailures: string[] = [];
 
-    for (const target of targets) {
+    for (const target of candidateTargets) {
       try {
         const adapter =
           target.externalModel.providerKey === "openai"
@@ -253,37 +304,29 @@ export class ModelRouter {
           };
         }
 
-        // Successfully finished stream with this target
+        // Successfully finished stream
         return;
       } catch (err) {
         lastError = err as Error;
+        const { safeMessage } = ProviderStatusService.recordFailure(
+          target.externalModel.providerKey,
+          err
+        );
+        attemptedFailures.push(`${target.externalModel.displayName}: ${safeMessage}`);
         console.warn(
-          `[ModelRouter] Route failed for ${target.externalModel.id} (${target.routeRole}): ${lastError.message}. Attempting fallback if available.`
+          `[ModelRouter] Route failed for ${target.externalModel.id} (${target.routeRole}): ${lastError.message}`
         );
       }
     }
 
-    const lastUserPrompt = request.messages.filter((m) => m.role === "user").pop()?.content || "";
-    const fallbackText =
-      `**Python** is a high-level, interpreted, general-purpose programming language renowned for its clear syntax, readability, and versatile standard library ("batteries included").\n\n` +
-      `### Core Characteristics:\n` +
-      `- **Readability First:** Uses elegant indentation and clear keywords instead of curly brackets.\n` +
-      `- **Multi-Paradigm:** Seamlessly supports object-oriented, functional, and procedural programming.\n` +
-      `- **AI & Machine Learning Leader:** The primary language powering PyTorch, TensorFlow, scikit-learn, and Hugging Face.\n` +
-      `- **Backend & Automation:** Widely used across web backends (FastAPI, Django) and DevOps automation scripts.\n\n` +
-      `*(Note: Nexora gracefully synthesized this response because external provider APIs reported: ${lastError?.message})*`;
-
-    const answer = lastUserPrompt.toLowerCase().includes("python")
-      ? fallbackText
-      : `### Nexora Intelligence Router\n\nReceived your inquiry: "${lastUserPrompt.slice(0, 150)}".\n\n*(Upstream provider status: ${lastError?.message})*`;
-
+    // Clean, truthful failure notice (never fabricated answers)
     yield {
       id: `fallback_${Date.now()}`,
-      textDelta: answer,
+      textDelta: `[AI Provider Notice: All configured AI model providers encountered an error.\n${attemptedFailures.map((f) => `- ${f}`).join("\n")}\n\nTroubleshooting:\n- If using OpenAI, check billing credits at https://platform.openai.com/settings/organization/billing/.\n- If using Gemini, verify GEMINI_API_KEY in .env.local.\n- If using Anthropic, verify ANTHROPIC_API_KEY in .env.local.]`,
       isComplete: true,
       finishReason: "stop",
-      modelAttribution: "Nexora Intelligent Fallback",
-      providerKey: "gemini",
+      modelAttribution: "Nexora Intelligent Router",
+      providerKey: candidateTargets[0]?.externalModel.providerKey || "gemini",
     };
   }
 
@@ -293,11 +336,27 @@ export class ModelRouter {
   static async generateWithFallback(
     request: ChatCompletionRequest
   ): Promise<ChatCompletionResponse & { modelAttribution: string }> {
-    const targets = this.resolveRoutes(request.modelSelectionId, request.userPlanId, request.orgId);
+    const targets = this.resolveRoutes(
+      request.modelSelectionId,
+      request.userPlanId || "free",
+      request.orgId
+    );
+    const configuredProviders = new Set(ProviderStatusService.getConfiguredProviders());
+
+    const candidateTargets = targets.filter(
+      (t) => configuredProviders.has(t.externalModel.providerKey) || targets.length === 1
+    );
+
+    if (candidateTargets.length === 0) {
+      throw new Error(
+        "No AI provider is configured on this device. Add a supported provider API key (OPENAI_API_KEY, ANTHROPIC_API_KEY, or GEMINI_API_KEY) to your .env.local file, restart Nexora, and try again."
+      );
+    }
 
     let lastError: Error | null = null;
+    const attemptedFailures: string[] = [];
 
-    for (const target of targets) {
+    for (const target of candidateTargets) {
       try {
         const adapter =
           target.externalModel.providerKey === "openai"
@@ -321,34 +380,16 @@ export class ModelRouter {
         };
       } catch (err) {
         lastError = err as Error;
-        console.warn(
-          `[ModelRouter] Non-streaming route failed for ${target.externalModel.id}: ${lastError.message}.`
+        const { safeMessage } = ProviderStatusService.recordFailure(
+          target.externalModel.providerKey,
+          err
         );
+        attemptedFailures.push(`${target.externalModel.displayName}: ${safeMessage}`);
       }
     }
 
-    const lastUserPrompt = request.messages.filter((m: any) => m.role === "user").pop()?.content || "";
-    let content = "";
-    if (/weather|temperature|forecast|climate/i.test(lastUserPrompt)) {
-      const city = lastUserPrompt.replace(/.*(?:in|for|of|at)\s+/i, "").replace(/[?.!]+$/, "").trim() || "the requested region";
-      content = `The current weather for **${city}** is approximately **28°C (82°F)** with partly cloudy to clear skies, comfortable humidity (~60-65%), and gentle surface winds at 6-10 km/h.`;
-    } else if (lastUserPrompt.toLowerCase().includes("react")) {
-      content = `**React** is an open-source, component-based front-end JavaScript library developed by Meta for building interactive, scalable user interfaces. It utilizes a declarative component model and a high-performance Virtual DOM (VDOM) to efficiently calculate state differences and update the browser DOM with minimal overhead. Through modern React Hooks and React Server Components (RSC), it powers modern web applications with modular architecture and exceptional developer productivity.`;
-    } else if (lastUserPrompt.toLowerCase().includes("python")) {
-      content = `**Python** is a high-level, interpreted, general-purpose programming language renowned for its clear syntax, readability, and extensive standard library ("batteries included"). It supports object-oriented, functional, and procedural programming, and serves as the global standard for AI, machine learning, data science, and cloud automation.`;
-    } else {
-      content = `**${lastUserPrompt.trim().replace(/[?.!]+$/, "")}** is an essential technical concept in modern software architecture and systems engineering, providing structured approaches to data modeling, logic, and state management.`;
-    }
-
-    return {
-      id: `fallback_${Date.now()}`,
-      content,
-      modelUsed: "nexora-core",
-      providerKey: "gemini",
-      promptTokens: 15,
-      completionTokens: 80,
-      finishReason: "stop",
-      modelAttribution: "Nexora Synthesizer",
-    };
+    throw new Error(
+      `All configured AI model providers encountered an error: ${attemptedFailures.join("; ")}`
+    );
   }
 }

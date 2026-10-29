@@ -1,51 +1,17 @@
-import fs from "fs";
-import path from "path";
 import { AIProviderAdapter, ChatChunk, ChatCompletionResponse } from "../types";
-
-function readEnvLocalKey(varName: string): string | null {
-  try {
-    const envPath = path.join(process.cwd(), ".env.local");
-    if (fs.existsSync(envPath)) {
-      const content = fs.readFileSync(envPath, "utf8");
-      const match = content.match(new RegExp(`^${varName}=(.*)$`, "m"));
-      if (match && match[1]) {
-        return match[1].trim().replace(/^["']|["']$/g, "");
-      }
-    }
-  } catch {
-    // fallback gracefully
-  }
-  return null;
-}
+import { ProviderStatusService } from "../provider-status";
 
 export class GeminiAdapter implements AIProviderAdapter {
   providerKey = "gemini" as const;
-  private apiKey: string | null = null;
-
-  constructor() {
-    const key =
-      process.env.GEMINI_API_KEY ||
-      process.env.GOOGLE_API_KEY ||
-      readEnvLocalKey("GEMINI_API_KEY") ||
-      readEnvLocalKey("GOOGLE_API_KEY");
-    if (key && !key.includes("...your-gemini-api-key")) {
-      this.apiKey = key.trim();
-    }
-  }
 
   private getApiKey(): string {
-    const key =
-      this.apiKey ||
-      process.env.GEMINI_API_KEY ||
-      process.env.GOOGLE_API_KEY ||
-      readEnvLocalKey("GEMINI_API_KEY") ||
-      readEnvLocalKey("GOOGLE_API_KEY");
-    if (!key || key.includes("...your-gemini-api-key")) {
+    const key = ProviderStatusService.getApiKey("gemini");
+    if (!key) {
       throw new Error(
-        "Gemini API key is not configured. Set GEMINI_API_KEY or GOOGLE_API_KEY in your environment."
+        "Gemini API key is not configured. Set GEMINI_API_KEY or GOOGLE_API_KEY in your .env.local file to use Gemini models."
       );
     }
-    return key.trim();
+    return key;
   }
 
   async generateCompletion(
@@ -63,21 +29,29 @@ export class GeminiAdapter implements AIProviderAdapter {
         parts: [{ text: m.content }],
       }));
 
-    let candidateModels = [
-      "gemini-3.5-flash",
-      "gemini-flash-lite-latest",
-      "gemini-3.1-flash-lite",
-      "gemini-3.7-flash",
-      "gemini-3.8-flash",
-    ];
-    const rawId = modelId.replace(/^(google:|gemini:)/, "").toLowerCase();
+    // Resolve target model ID to official verified Google Generative AI model identifiers
+    const rawId = modelId.replace(/^(google:|gemini:)/i, "").toLowerCase().trim();
+    let primaryModel = "gemini-3.5-flash";
     if (rawId.includes("pro")) {
-      candidateModels = ["gemini-3.5-flash", "gemini-3.1-pro-preview", "gemini-pro-latest"];
+      primaryModel = "gemini-3.1-pro-preview";
+    } else if (rawId.includes("lite")) {
+      primaryModel = "gemini-3.5-flash-lite";
     }
+
+    // Verified active models on Google Generative AI API (with fallback order)
+    const candidateModels = Array.from(
+      new Set([
+        primaryModel,
+        "gemini-3.5-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-3.1-flash-lite",
+        "gemini-3.1-pro-preview",
+      ])
+    );
 
     let lastError: Error | null = null;
     let data: any = null;
-    let usedModel = candidateModels[0];
+    let usedModel = primaryModel;
 
     const body: Record<string, any> = {
       contents,
@@ -104,7 +78,14 @@ export class GeminiAdapter implements AIProviderAdapter {
 
         if (!res.ok) {
           const errText = await res.text();
-          throw new Error(`Gemini API error (${res.status}): ${errText}`);
+          let parsedMsg = errText;
+          try {
+            const parsed = JSON.parse(errText);
+            if (parsed.error && parsed.error.message) {
+              parsedMsg = parsed.error.message;
+            }
+          } catch {}
+          throw new Error(`Gemini API error (${res.status}): ${parsedMsg}`);
         }
 
         const resData = await res.json();
@@ -117,13 +98,21 @@ export class GeminiAdapter implements AIProviderAdapter {
         }
       } catch (err) {
         lastError = err as Error;
-        // Continue to next candidate model
+        const msg = (err as Error).message || "";
+        // If it's a 401 auth error, the key itself is invalid - no candidate model will succeed
+        if (msg.includes("401") || msg.includes("API_KEY_INVALID")) {
+          break;
+        }
       }
     }
 
     if (!data) {
-      throw lastError || new Error("Gemini failed to generate response across candidate models.");
+      const finalErr = lastError || new Error("Gemini failed to generate response across candidate models.");
+      ProviderStatusService.recordFailure("gemini", finalErr);
+      throw finalErr;
     }
+
+    ProviderStatusService.recordSuccess("gemini");
 
     const candidate = data.candidates?.[0];
     const text = candidate?.content?.parts?.map((p: any) => p.text).filter(Boolean).join("") || "";

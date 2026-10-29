@@ -83,9 +83,9 @@ export interface ChatCompletionRequest {
   maxTokens?: number;
   includeWebSearch?: boolean;
   fileContexts?: string[];
-  userId: string;
+  userId?: string;
   orgId?: string;
-  userPlanId: "free" | "pro" | "family" | "enterprise";
+  userPlanId?: "free" | "pro" | "family" | "enterprise";
 }
 
 export interface ChatChunk {

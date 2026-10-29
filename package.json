@@ -3,6 +3,7 @@
   "version": "0.4.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/clean-next.js",
     "dev": "next dev",
     "prebuild": "node scripts/clean-next.js",
     "build": "next build",
@@ -11,6 +12,7 @@
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "ai:check": "node scripts/check-providers.js",
     "postinstall": "prisma skills sync || exit 0"
   },
   "dependencies": {

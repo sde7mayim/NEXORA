@@ -301,3 +301,4 @@ export function resetCrossTabState(): void {
   inMemoryLedger = [];
   inMemoryRotationCounter = 0;
 }
+

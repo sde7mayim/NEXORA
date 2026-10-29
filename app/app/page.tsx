@@ -44,7 +44,12 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { NEXORA_MODEL_FAMILIES, EXTERNAL_MODELS } from "@/lib/ai/model-registry";
-import { ConversationStore, Conversation, ConversationMessage } from "@/lib/chat/conversation-store";
+import {
+  ConversationStore,
+  Conversation,
+  ConversationMessage,
+  ConversationAttachment,
+} from "@/lib/chat/conversation-store";
 import { ModelDetailsModal } from "@/components/model-details-modal";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { createClient } from "@/lib/supabase/client";
@@ -171,6 +176,8 @@ export default function ChatWorkspacePage() {
   const [avatarInitial, setAvatarInitial] = useState<string>("U");
   const [input, setInput] = useState("");
   const [selectedModel, setSelectedModel] = useState("nexora-core");
+  const [providerStatuses, setProviderStatuses] = useState<Record<string, { isConfigured: boolean; state: string }>>({});
+  const [defaultModelId, setDefaultModelId] = useState<string>("nexora-core");
   const [includeWebSearch, setIncludeWebSearch] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -229,6 +236,37 @@ export default function ChatWorkspacePage() {
       setSidebarOpen(true);
     }
   }, []);
+
+  // Fetch provider configuration status and recommended default model
+  useEffect(() => {
+    let isSubscribed = true;
+    async function loadModelStatuses() {
+      try {
+        const res = await fetch(`/api/models?plan=${currentUserPlan}`);
+        if (res.ok && isSubscribed) {
+          const data = await res.json();
+          if (data.providerStatuses) {
+            setProviderStatuses(data.providerStatuses);
+          }
+          if (data.defaultModelId) {
+            setDefaultModelId(data.defaultModelId);
+            setSelectedModel((prev) => {
+              if (prev.startsWith("openai:") && !data.providerStatuses?.openai?.isConfigured) return data.defaultModelId;
+              if (prev.startsWith("anthropic:") && !data.providerStatuses?.anthropic?.isConfigured) return data.defaultModelId;
+              if (prev.startsWith("gemini:") && !data.providerStatuses?.gemini?.isConfigured) return data.defaultModelId;
+              return prev;
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("[App] Could not load provider statuses:", err);
+      }
+    }
+    loadModelStatuses();
+    return () => {
+      isSubscribed = false;
+    };
+  }, [currentUserPlan]);
 
   // Lock body scroll and listen for Escape key when mobile unified drawer is open
   useEffect(() => {
@@ -458,13 +496,89 @@ export default function ChatWorkspacePage() {
       return;
     }
 
+    // Ensure an active conversation exists
+    let convId = activeConvId;
+    if (!convId) {
+      const newConv = ConversationStore.createConversation("New Conversation", selectedModel, currentUserEmail);
+      convId = newConv.id;
+      setActiveConvId(convId);
+      setConversations(ConversationStore.getConversations(currentUserEmail));
+    }
+
+    // Process attachments to extract textual content for context-aware QA
+    const processedAttachments: ConversationAttachment[] = [];
+    const filesForPayload: Array<{ id?: string; name: string; type?: string; size?: number; content?: string }> = [];
+
+    for (const file of attachments) {
+      try {
+        const isTextBased =
+          /\.(md|markdown|txt|csv|json|js|jsx|ts|tsx|py|html|css|yaml|yml|xml|sql|sh|env)$/i.test(file.name) ||
+          file.type.startsWith("text/") ||
+          file.type.includes("json") ||
+          file.type.includes("csv");
+
+        let content = "";
+        if (isTextBased) {
+          content = await file.text();
+        } else {
+          // Attempt parsing through /api/files for binary docs (e.g. PDF/DOCX)
+          const fd = new FormData();
+          fd.append("file", file);
+          fd.append("conversationId", convId);
+          fd.append("userId", currentUserEmail || "guest");
+          fd.append("planTier", currentUserPlan);
+          const uploadRes = await fetch("/api/files", { method: "POST", body: fd });
+          if (uploadRes.ok) {
+            const uploadData = await uploadRes.json();
+            content = uploadData.fullText || uploadData.extractedSnippet || "";
+          }
+        }
+
+        const attItem: ConversationAttachment = {
+          name: file.name,
+          size: file.size,
+          mimeType: file.type || "text/plain",
+          content: content || undefined,
+        };
+        processedAttachments.push(attItem);
+
+        filesForPayload.push({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          content: content || undefined,
+        });
+
+        // Register document in conversation store
+        if (content) {
+          ConversationStore.addDocument(
+            convId,
+            {
+              fileName: file.name,
+              fileSizeBytes: file.size,
+              mimeType: file.type || "text/plain",
+              fullText: content,
+            },
+            currentUserEmail
+          );
+        }
+      } catch (err) {
+        console.warn("[App] Attachment extraction warning:", file.name, err);
+        processedAttachments.push({
+          name: file.name,
+          size: file.size,
+          mimeType: file.type,
+        });
+      }
+    }
+
     const userMsgId = `msg_${Date.now()}`;
     const userMessage: ConversationMessage = {
       id: userMsgId,
       role: "user",
       content: textToSend,
       createdAt: new Date().toISOString(),
-      attachments: attachments.map((f) => ({ name: f.name, size: f.size })),
+      attachments: processedAttachments,
     };
 
     const newMessages = [...messages, userMessage];
@@ -474,7 +588,7 @@ export default function ChatWorkspacePage() {
     setIsStreaming(true);
 
     // Persist user message to store
-    ConversationStore.saveMessage(activeConvId, userMessage, currentUserEmail);
+    ConversationStore.saveMessage(convId, userMessage, currentUserEmail);
     setConversations(ConversationStore.getConversations(currentUserEmail));
 
     const assistantMsgId = `msg_ast_${Date.now()}`;
@@ -497,10 +611,16 @@ export default function ChatWorkspacePage() {
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
         body: JSON.stringify({
+          conversationId: convId,
           modelSelectionId: selectedModel,
-          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
+          messages: newMessages.map((m) => ({
+            role: m.role,
+            content: m.content,
+            attachments: m.attachments,
+          })),
+          files: filesForPayload.length > 0 ? filesForPayload : undefined,
           includeWebSearch,
-          planTier: "pro",
+          planTier: currentUserPlan || "pro",
           userId: currentUserEmail || "usr_anonymous",
         }),
       });
@@ -641,10 +761,15 @@ export default function ChatWorkspacePage() {
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
         body: JSON.stringify({
+          conversationId: activeConvId,
           modelSelectionId: modelToUse,
-          messages: previousMessages.map((m) => ({ role: m.role, content: m.content })),
+          messages: previousMessages.map((m) => ({
+            role: m.role,
+            content: m.content,
+            attachments: m.attachments,
+          })),
           includeWebSearch,
-          planTier: "pro",
+          planTier: currentUserPlan || "pro",
           userId: currentUserEmail || "usr_anonymous",
         }),
       });
@@ -1202,26 +1327,50 @@ export default function ChatWorkspacePage() {
                   <div className="px-2.5 pt-2 border-t border-white/5 text-xs font-bold uppercase tracking-wider text-zinc-400">
                     Direct Foundation Models
                   </div>
-                  {EXTERNAL_MODELS.map((m) => (
-                    <button
-                      key={m.id}
-                      onClick={() => {
-                        setSelectedModel(m.id);
-                        setModelDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm flex items-center justify-between transition-colors ${
-                        selectedModel === m.id
-                          ? "bg-indigo-600 text-white font-medium"
-                          : "text-zinc-300 hover:bg-white/5"
-                      }`}
-                    >
-                      <div>
-                        <div className="font-semibold text-sm">{m.displayName}</div>
-                        <div className="text-xs text-zinc-400">{m.providerKey.toUpperCase()}</div>
-                      </div>
-                      {selectedModel === m.id && <Check className="w-4 h-4 shrink-0" />}
-                    </button>
-                  ))}
+                  {EXTERNAL_MODELS.map((m) => {
+                    const statusObj = providerStatuses[m.providerKey];
+                    const isConfigured = statusObj ? statusObj.isConfigured : true;
+                    return (
+                      <button
+                        key={m.id}
+                        onClick={() => {
+                          if (!isConfigured) {
+                            setCapabilityError(
+                              `${m.displayName} requires ${m.providerKey.toUpperCase()}_API_KEY which is not configured in .env.local. Configure it or choose an available model.`
+                            );
+                          }
+                          setSelectedModel(m.id);
+                          setModelDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm flex items-center justify-between transition-colors ${
+                          selectedModel === m.id
+                            ? "bg-indigo-600 text-white font-medium"
+                            : "text-zinc-300 hover:bg-white/5"
+                        } ${!isConfigured ? "opacity-75" : ""}`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span
+                            className={`w-2 h-2 rounded-full shrink-0 ${
+                              isConfigured ? "bg-emerald-400 shadow-sm shadow-emerald-400/50" : "bg-amber-400/80"
+                            }`}
+                            title={isConfigured ? "Configured & Ready" : "API Key Not Set"}
+                          />
+                          <div>
+                            <div className="font-semibold text-sm flex items-center gap-1.5">
+                              {m.displayName}
+                              {!isConfigured && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">
+                                  No Key
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-zinc-400">{m.providerKey.toUpperCase()}</div>
+                          </div>
+                        </div>
+                        {selectedModel === m.id && <Check className="w-4 h-4 shrink-0" />}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1646,6 +1795,50 @@ export default function ChatWorkspacePage() {
         {/* Message Composer */}
         <div className="p-3 md:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] border-t border-white/10 bg-slate-950/90 backdrop-blur-xl z-20 shrink-0">
           <div className="max-w-3xl mx-auto space-y-2">
+            {/* Grounded Active Documents in this Conversation */}
+            {(() => {
+              const activeConv = conversations.find((c) => c.id === activeConvId);
+              const activeDocs = activeConv?.activeDocuments || [];
+              if (activeDocs.length === 0) return null;
+              return (
+                <div className="flex flex-wrap items-center gap-2 p-2 px-3 rounded-xl bg-indigo-950/40 border border-indigo-500/20 text-xs">
+                  <div className="flex items-center gap-1.5 text-indigo-300 font-semibold shrink-0">
+                    <FileText className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Document Context:</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {activeDocs.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-xs text-zinc-200"
+                      >
+                        <span className="font-mono truncate max-w-[180px] sm:max-w-xs" title={doc.fileName}>
+                          {doc.fileName}
+                        </span>
+                        {doc.fileSizeBytes && (
+                          <span className="text-[10px] text-zinc-400">
+                            ({(doc.fileSizeBytes / 1024).toFixed(1)} KB)
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            ConversationStore.removeDocument(activeConvId, doc.id || doc.fileName, currentUserEmail);
+                            setConversations(ConversationStore.getConversations(currentUserEmail));
+                          }}
+                          className="text-zinc-400 hover:text-rose-400 p-0.5 ml-0.5 transition-colors"
+                          title="Remove document from conversation context"
+                          aria-label="Remove document from context"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Active Attachment Pills */}
             {attachments.length > 0 && (
               <div className="flex flex-nowrap sm:flex-wrap gap-2 pb-1 overflow-x-auto touch-scroll">
