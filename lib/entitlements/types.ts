@@ -8,6 +8,11 @@ export interface PlanConfig {
   dailyMessageLimit: number;
   monthlyMessageLimit: number;
   monthlyResearchLimit: number;
+  monthlyImageGenerations: number;
+  monthlyImageEdits: number;
+  monthlyLyricsGenerations: number;
+  monthlyMusicGenerations: number;
+  monthlyAudioMinutes: number;
   maxFileSizeMB: number;
   maxStorageMB: number;
   retentionDays: number;
@@ -26,6 +31,11 @@ export const PLAN_CONFIGS: Record<PlanTier, PlanConfig> = {
     dailyMessageLimit: 10,
     monthlyMessageLimit: 100,
     monthlyResearchLimit: 3,
+    monthlyImageGenerations: 10,
+    monthlyImageEdits: 5,
+    monthlyLyricsGenerations: 20,
+    monthlyMusicGenerations: 5,
+    monthlyAudioMinutes: 10,
     maxFileSizeMB: 5,
     maxStorageMB: 50,
     retentionDays: 30,
@@ -42,6 +52,11 @@ export const PLAN_CONFIGS: Record<PlanTier, PlanConfig> = {
     dailyMessageLimit: 100,
     monthlyMessageLimit: 2000,
     monthlyResearchLimit: 100,
+    monthlyImageGenerations: 200,
+    monthlyImageEdits: 100,
+    monthlyLyricsGenerations: 500,
+    monthlyMusicGenerations: 60,
+    monthlyAudioMinutes: 120,
     maxFileSizeMB: 25,
     maxStorageMB: 1024, // 1 GB
     retentionDays: 365,
@@ -58,6 +73,11 @@ export const PLAN_CONFIGS: Record<PlanTier, PlanConfig> = {
     dailyMessageLimit: 300,
     monthlyMessageLimit: 6000,
     monthlyResearchLimit: 200,
+    monthlyImageGenerations: 400,
+    monthlyImageEdits: 200,
+    monthlyLyricsGenerations: 1000,
+    monthlyMusicGenerations: 120,
+    monthlyAudioMinutes: 240,
     maxFileSizeMB: 50,
     maxStorageMB: 4096, // 4 GB shared storage
     retentionDays: 365,
@@ -74,6 +94,11 @@ export const PLAN_CONFIGS: Record<PlanTier, PlanConfig> = {
     dailyMessageLimit: 1000, // Org-configurable default
     monthlyMessageLimit: 25000,
     monthlyResearchLimit: 1000,
+    monthlyImageGenerations: 2000,
+    monthlyImageEdits: 1000,
+    monthlyLyricsGenerations: 5000,
+    monthlyMusicGenerations: 600,
+    monthlyAudioMinutes: 1000,
     maxFileSizeMB: 100,
     maxStorageMB: 10240, // 10 GB
     retentionDays: 730,

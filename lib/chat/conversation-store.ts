@@ -1,3 +1,6 @@
+import { EntityCardData } from "../ai/entities/entity-types";
+import { CreativeArtifact } from "../ai/creative/creative-types";
+
 export interface ConversationAttachment {
   name: string;
   size: number;
@@ -17,6 +20,13 @@ export interface ConversationDocumentInfo {
   uploadedAt?: string;
 }
 
+export interface ConversationEntityInfo {
+  id: string;
+  name: string;
+  category: string;
+  updatedAt: string;
+}
+
 export interface ConversationMessage {
   id: string;
   role: "user" | "assistant" | "system";
@@ -25,6 +35,8 @@ export interface ConversationMessage {
   createdAt: string;
   citations?: Array<{ title: string; url: string; snippet: string }>;
   attachments?: ConversationAttachment[];
+  entityCards?: EntityCardData[];
+  creativeArtifacts?: CreativeArtifact[];
 }
 
 export interface Conversation {
@@ -36,6 +48,7 @@ export interface Conversation {
   updatedAt: string;
   messages: ConversationMessage[];
   activeDocuments?: ConversationDocumentInfo[];
+  activeEntities?: ConversationEntityInfo[];
 }
 
 const STORAGE_PREFIX = "nexora_conversations_u_";
@@ -302,6 +315,14 @@ export class ConversationStore {
   }
 
   /**
+   * Retrieves active entities identified in this conversation for contextual follow-up resolution.
+   */
+  static getActiveEntities(conversationId: string, userId?: string): ConversationEntityInfo[] {
+    const conv = this.getConversation(conversationId, userId);
+    return conv?.activeEntities || [];
+  }
+
+  /**
    * Removes a document from active conversation context.
    */
   static removeDocument(conversationId: string, documentId: string, userId?: string): boolean {
@@ -359,6 +380,25 @@ export class ConversationStore {
           });
         }
       }
+    }
+
+    // If message contains entity cards, record active entities for conversational follow-up resolution
+    if (message.entityCards && message.entityCards.length > 0) {
+      if (!conv.activeEntities) conv.activeEntities = [];
+      for (const card of message.entityCards) {
+        const lowerName = card.name.toLowerCase().trim();
+        conv.activeEntities = conv.activeEntities.filter(
+          (e) => e.name.toLowerCase().trim() !== lowerName
+        );
+        conv.activeEntities.unshift({
+          id: card.id,
+          name: card.name,
+          category: card.category,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      // Keep up to 5 most recent entities
+      conv.activeEntities = conv.activeEntities.slice(0, 5);
     }
 
     if (conv.title === "New Conversation" && message.role === "user") {

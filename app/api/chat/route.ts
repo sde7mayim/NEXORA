@@ -8,6 +8,15 @@ import { MemoryService, UserMemoryItem } from "@/lib/memory/memory-service";
 import { DocumentParser } from "@/lib/files/document-parser";
 import { ConversationDocumentStore } from "@/lib/files/document-store";
 import { DocumentRetrievalService } from "@/lib/files/document-retrieval";
+import { EntityDetector } from "@/lib/ai/entities/entity-detector";
+import { EntityRetrieverService } from "@/lib/ai/entities/entity-retriever";
+import { EntityCardData } from "@/lib/ai/entities/entity-types";
+import { CreativeDetector } from "@/lib/ai/creative/creative-detector";
+import { ImageCreativeService } from "@/lib/ai/creative/image-service";
+import { LyricsCreativeService } from "@/lib/ai/creative/lyrics-service";
+import { MusicCreativeService } from "@/lib/ai/creative/music-service";
+import { AudioCreativeService } from "@/lib/ai/creative/audio-service";
+import { CreativeArtifact } from "@/lib/ai/creative/creative-types";
 
 const ChatRequestSchema = z.object({
   modelSelectionId: z.string().min(1),
@@ -46,6 +55,13 @@ const ChatRequestSchema = z.object({
   includeWebSearch: z.boolean().optional(),
   planTier: z.enum(["free", "pro", "enterprise"]).default("free"),
   userId: z.string().default("usr_anonymous"),
+  creativeStudioRequest: z
+    .object({
+      type: z.enum(["image", "edited-image", "lyrics", "music", "voice", "transcription"]),
+      prompt: z.string().optional(),
+      options: z.record(z.any()).optional(),
+    })
+    .optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -292,6 +308,173 @@ CORE RESPONSE GUIDELINES:
       }
     }
 
+    // 8.5. Intelligent Entity Detection & Multimodal Retrieval (Normal Chat)
+    let retrievedEntityCards: EntityCardData[] = [];
+    if (lastUserMessage && (!files || files.length === 0)) {
+      try {
+        const historyContext = messages.slice(0, -1).map((m) => ({
+          role: m.role,
+          content: m.content,
+        }));
+        const detection = EntityDetector.detect(lastUserMessage.content, historyContext);
+        if (detection.isEntityQuery) {
+          if (detection.comparisonEntities && detection.comparisonEntities.length > 1) {
+            for (const ent of detection.comparisonEntities) {
+              const subCard = await EntityRetrieverService.retrieveEntity({
+                isEntityQuery: true,
+                entityName: ent,
+                category: detection.category,
+              });
+              if (subCard) retrievedEntityCards.push(subCard);
+            }
+          } else {
+            const card = await EntityRetrieverService.retrieveEntity(detection);
+            if (card) retrievedEntityCards.push(card);
+          }
+        }
+      } catch (entityErr) {
+        console.warn("[App] Entity detection error:", entityErr);
+      }
+    }
+
+    if (retrievedEntityCards.length > 0) {
+      const entitySummaries = retrievedEntityCards
+        .map((c) => {
+          let specText = "";
+          if (c.specGroups) {
+            specText = c.specGroups
+              .map(
+                (g) =>
+                  `${g.groupName}:\n${g.specs.map((s) => `  - ${s.label}: ${s.value}`).join("\n")}`
+              )
+              .join("\n");
+          } else if (c.quickFacts) {
+            specText = c.quickFacts.map((f) => `  - ${f.label}: ${f.value}`).join("\n");
+          }
+          return `=== VERIFIED ENTITY CARD: ${c.name} (${c.category.toUpperCase()}) ===\nSubtitle: ${c.subtitle || ""}\nOverview: ${c.description || ""}\n${specText}\n${c.pros ? `Pros:\n${c.pros.map((p) => `  + ${p}`).join("\n")}\n` : ""}${c.cons ? `Cons:\n${c.cons.map((cn) => `  - ${cn}`).join("\n")}\n` : ""}${c.attractions ? `Attractions:\n${c.attractions.map((a) => `  * ${a}`).join("\n")}\n` : ""}`;
+        })
+        .join("\n\n");
+
+      contextualMessages.push({
+        role: "system",
+        content: `VERIFIED ENTITY SPECIFICATIONS & DETAILS:\n\n${entitySummaries}\n\nIMPORTANT CONVERSATIONAL DIRECTIVES:\n- Answer the user's conversational question naturally and accurately based on these verified facts and specifications.\n- A rich interactive visual card with verified photographs, full spec tables, and pros/cons is automatically rendered alongside your answer.\n- Keep your conversational reply engaging, insightful, and directly responsive to their question without unnecessarily re-dumping raw markdown tables that duplicate the card.`,
+      });
+    }
+
+    // 8.6. Intelligent Creative Studio Engine (Image, Edit, Lyrics, Music, Voice, Audio)
+    let retrievedCreativeArtifacts: CreativeArtifact[] = [];
+    if (lastUserMessage) {
+      try {
+        const creativeReq = parsed.data.creativeStudioRequest;
+        let cType = creativeReq?.type;
+        let cPrompt = creativeReq?.prompt || lastUserMessage.content;
+        let cOptions: Record<string, any> = creativeReq?.options || {};
+
+        if (!cType) {
+          const attachmentsList = (lastUserMessage.attachments || []).map((a) => ({
+            name: a.name,
+            mimeType: a.mimeType,
+            content: a.content,
+          }));
+          const historyContext = messages.slice(0, -1).map((m) => ({
+            role: m.role,
+            content: m.content,
+          }));
+          const cDetect = CreativeDetector.detect(lastUserMessage.content, attachmentsList, historyContext);
+          if (cDetect.isCreativeIntent && cDetect.creativeType) {
+            cType = cDetect.creativeType;
+            cPrompt = cDetect.prompt || lastUserMessage.content;
+            cOptions = cDetect.parameters || {};
+          }
+        }
+
+        if (cType) {
+          if (cType === "image") {
+            const art = await ImageCreativeService.generateImage({
+              prompt: cPrompt,
+              aspectRatio: cOptions.aspectRatio || "1:1",
+              style: cOptions.style || "cinematic",
+              seed: cOptions.seed,
+            });
+            retrievedCreativeArtifacts.push(art);
+          } else if (cType === "edited-image") {
+            const firstImg = (lastUserMessage.attachments || []).find((a) =>
+              a.mimeType?.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(a.name)
+            );
+            const origUrl =
+              cOptions.originalImageUrl ||
+              firstImg?.content ||
+              "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Crect width='100%25' height='100%25' fill='%236366f1'/%3E%3Ctext x='50%25' y='50%25' fill='white' font-size='20' text-anchor='middle'%3EUploaded Image%3C/text%3E%3C/svg%3E";
+            const art = await ImageCreativeService.editImage({
+              originalImageUrl: origUrl,
+              instruction: cPrompt || cOptions.instruction || "Enhance image",
+              operation: cOptions.operation || cOptions.editOperation || "remove-bg",
+              targetBackground: cOptions.targetBackground,
+            });
+            retrievedCreativeArtifacts.push(art);
+          } else if (cType === "lyrics") {
+            const art = await LyricsCreativeService.generateLyrics({
+              theme: cPrompt || cOptions.theme || "Love and hope",
+              language: cOptions.language || "English",
+              genre: cOptions.genre || "Romantic Melody",
+              mood: cOptions.mood || "Love",
+              vocalStyle: cOptions.vocalStyle || "Duet",
+              songLength: cOptions.songLength || "standard",
+            });
+            retrievedCreativeArtifacts.push(art);
+          } else if (cType === "music") {
+            const art = await MusicCreativeService.generateMusic({
+              prompt: cPrompt || "Romantic melody soundtrack",
+              genre: cOptions.genre || "Tamil Melody",
+              mood: cOptions.mood || "Romantic",
+              lyricsSnippet: cOptions.lyricsSnippet,
+              fullExactLyrics: cOptions.fullExactLyrics,
+              keySignature: cOptions.keySignature,
+              vocalStyle: cOptions.vocalStyle,
+              instruments: cOptions.instruments,
+              isInstrumental: cOptions.isInstrumental ?? (cOptions.vocalStyle === "Instrumental"),
+              tempoBpm: cOptions.tempoBpm || 88,
+              durationSeconds: cOptions.durationSeconds || 28,
+            });
+            retrievedCreativeArtifacts.push(art);
+          } else if (cType === "voice") {
+            const art = await AudioCreativeService.generateVoice({
+              text: cPrompt || "Welcome to Nexora Creative Studio.",
+              voiceName: cOptions.voiceName || "nova",
+              speed: cOptions.speed || 1.0,
+            });
+            retrievedCreativeArtifacts.push(art);
+          } else if (cType === "transcription") {
+            const firstAudio = (lastUserMessage.attachments || []).find((a) =>
+              a.mimeType?.startsWith("audio/") || /\.(mp3|wav|ogg|m4a)$/i.test(a.name)
+            );
+            const art = await AudioCreativeService.transcribeAudio({
+              audioBase64: cOptions.audioBase64 || firstAudio?.content,
+              fileName: firstAudio?.name || "audio-recording.wav",
+            });
+            retrievedCreativeArtifacts.push(art);
+          }
+
+          if (retrievedCreativeArtifacts.length > 0) {
+            const art = retrievedCreativeArtifacts[0];
+            if (art.status === "failed") {
+              contextualMessages.push({
+                role: "system",
+                content: `NEXORA CREATIVE STUDIO STATUS:\n- Attempted Artifact Type: ${art.type}\n- Status: FAILED (Capacity limit or provider unavailable)\n- Error: ${art.errorMessage || "Free provider capacity reached"}\n\nIMPORTANT CONVERSATIONAL DIRECTIVES:\n- A clean error notice with a Retry button is already displayed to the user above your chat response.\n- Inform the user courteously that the free image generation provider is temporarily congested or at capacity.\n- Guide them to click the "Retry Generation" button on the card above, or mention they can configure an OPENAI_API_KEY in .env.local for dedicated priority DALL-E 3 image generation.`,
+              });
+            } else {
+              contextualMessages.push({
+                role: "system",
+                content: `NEXORA CREATIVE STUDIO OUTPUT:\n- Generated Artifact Type: ${art.type}\n- Title: "${art.title}"\n- Description/Subtitle: ${art.subtitle || ""}\n\nIMPORTANT CONVERSATIONAL DIRECTIVES:\n- An interactive visual player/card for this ${art.type} is rendered directly above your chat response.\n- Provide an engaging, insightful, and supportive conversational summary celebrating the creation, detailing its artistic nuances, mood, musical key/genre or visual highlights, and invite the user to iterate, change parameters, or download their result.`,
+              });
+            }
+          }
+        }
+      } catch (creativeErr) {
+        console.warn("[App] Creative generation error:", creativeErr);
+      }
+    }
+
     // 9. Stream AI response with intelligent model orchestrator
     const orchestration = await ModelOrchestrator.orchestrateStream({
       modelSelectionId,
@@ -329,6 +512,24 @@ CORE RESPONSE GUIDELINES:
               })}\n\n`
             )
           );
+
+          // If entity cards exist, send them as entityCards event
+          if (retrievedEntityCards.length > 0) {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ type: "entityCards", entityCards: retrievedEntityCards })}\n\n`
+              )
+            );
+          }
+
+          // If creative artifacts exist, send them as creativeArtifacts event
+          if (retrievedCreativeArtifacts.length > 0) {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ type: "creativeArtifacts", creativeArtifacts: retrievedCreativeArtifacts })}\n\n`
+              )
+            );
+          }
 
           // If citations exist, send them as citations event
           if (researchCitations.length > 0) {

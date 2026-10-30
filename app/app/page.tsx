@@ -52,6 +52,11 @@ import {
 } from "@/lib/chat/conversation-store";
 import { ModelDetailsModal } from "@/components/model-details-modal";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { EntityCard } from "@/components/chat/entity-card";
+import { EntityCardData } from "@/lib/ai/entities/entity-types";
+import { CreativeArtifactCard } from "@/components/chat/creative-artifact-card";
+import { CreativeComposerDrawer } from "@/components/chat/creative-composer-drawer";
+import { CreativeArtifact, CreativeArtifactType } from "@/lib/ai/creative/creative-types";
 import { createClient } from "@/lib/supabase/client";
 import { SavedAccountManager } from "@/lib/auth/saved-accounts";
 import { NexoraLogo } from "@/components/nexora-logo";
@@ -191,6 +196,14 @@ export default function ChatWorkspacePage() {
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
 
   const [isDragging, setIsDragging] = useState(false);
+
+  // Creative Studio State
+  const [isCreativeDrawerOpen, setIsCreativeDrawerOpen] = useState(false);
+  const [pendingCreativeRequest, setPendingCreativeRequest] = useState<{
+    type: CreativeArtifactType;
+    prompt: string;
+    options: Record<string, any>;
+  } | null>(null);
 
   // Drawer / History state
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -622,8 +635,12 @@ export default function ChatWorkspacePage() {
           includeWebSearch,
           planTier: currentUserPlan || "pro",
           userId: currentUserEmail || "usr_anonymous",
+          creativeStudioRequest: pendingCreativeRequest || undefined,
         }),
       });
+
+      // Clear pending creative action after dispatching
+      if (pendingCreativeRequest) setPendingCreativeRequest(null);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -638,6 +655,8 @@ export default function ChatWorkspacePage() {
       let accumulatedText = "";
       let modelAttribution = selectedModel;
       let citationsList: Array<{ title: string; url: string; snippet: string }> = [];
+      let entityCardsList: EntityCardData[] = [];
+      let creativeArtifactsList: CreativeArtifact[] = [];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -653,6 +672,14 @@ export default function ChatWorkspacePage() {
 
               if (data.type === "citations") {
                 citationsList = data.citations;
+              }
+
+              if (data.type === "entityCards" || data.entityCards) {
+                entityCardsList = data.entityCards;
+              }
+
+              if (data.type === "creativeArtifacts" || data.creativeArtifacts) {
+                creativeArtifactsList = data.creativeArtifacts;
               }
 
               if (data.text) {
@@ -674,6 +701,8 @@ export default function ChatWorkspacePage() {
                 modelUsed: modelAttribution,
                 createdAt: new Date().toISOString(),
                 citations: citationsList.length > 0 ? citationsList : undefined,
+                entityCards: entityCardsList.length > 0 ? entityCardsList : undefined,
+                creativeArtifacts: creativeArtifactsList.length > 0 ? creativeArtifactsList : undefined,
               };
 
               setMessages((prev) =>
@@ -786,6 +815,8 @@ export default function ChatWorkspacePage() {
       let accumulatedText = "";
       let modelAttribution = modelToUse;
       let citationsList: Array<{ title: string; url: string; snippet: string }> = [];
+      let entityCardsList: EntityCardData[] = [];
+      let creativeArtifactsList: CreativeArtifact[] = [];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -799,6 +830,8 @@ export default function ChatWorkspacePage() {
             try {
               const data = JSON.parse(line.replace("data: ", ""));
               if (data.type === "citations") citationsList = data.citations;
+              if (data.type === "entityCards" || data.entityCards) entityCardsList = data.entityCards;
+              if (data.type === "creativeArtifacts" || data.creativeArtifacts) creativeArtifactsList = data.creativeArtifacts;
               if (data.text) accumulatedText += data.text;
               if (data.modelUsed) modelAttribution = data.modelUsed;
               if (data.error) accumulatedText += `\n[Error: ${data.error}]`;
@@ -810,6 +843,8 @@ export default function ChatWorkspacePage() {
                 modelUsed: modelAttribution,
                 createdAt: new Date().toISOString(),
                 citations: citationsList.length > 0 ? citationsList : undefined,
+                entityCards: entityCardsList.length > 0 ? entityCardsList : undefined,
+                creativeArtifacts: creativeArtifactsList.length > 0 ? creativeArtifactsList : undefined,
               };
 
               setMessages((prev) =>
@@ -878,6 +913,59 @@ export default function ChatWorkspacePage() {
   const handleQuickFollowUp = (promptText: string) => {
     setOpenMoreMenuMsgId(null);
     handleSendMessage(promptText);
+  };
+
+  const handleCreativeAction = (action: string, payload?: any) => {
+    if ((action === "generate-song-from-lyrics" || action === "convert-to-song") && payload) {
+      setPendingCreativeRequest({
+        type: "music",
+        prompt: `Generate an original ${payload.genre || "Tamil Melody"} song titled "${payload.title}" with exact lyrics`,
+        options: {
+          title: payload.title,
+          genre: payload.genre,
+          mood: payload.mood,
+          tempoBpm: payload.tempoBpm,
+          keySignature: payload.keySignature,
+          vocalStyle: payload.vocalStyle,
+          instruments: payload.instruments,
+          language: payload.language,
+          fullExactLyrics: payload.lyrics,
+          lyricsSnippet: payload.lyrics?.slice(0, 300),
+        },
+      });
+      handleSendMessage(
+        `Generate an original ${payload.genre || "Tamil Melody"} song track using these exact lyrics titled "${payload.title}".`
+      );
+    } else if (action === "variation" && payload) {
+      setPendingCreativeRequest({
+        type: "image",
+        prompt: payload.prompt,
+        options: {
+          aspectRatio: payload.aspectRatio,
+          style: payload.style,
+          seed: Math.floor(Math.random() * 1000000),
+        },
+      });
+      setInput(`Create a visual variation of: ${payload.prompt}`);
+    } else if (action === "regenerate-music" && payload) {
+      setPendingCreativeRequest({
+        type: "music",
+        prompt: payload.prompt,
+        options: { genre: payload.genre },
+      });
+      setInput(`Regenerate audio track for: ${payload.prompt}`);
+    } else if ((action === "retry-image" || action === "retry") && payload) {
+      setPendingCreativeRequest({
+        type: "image",
+        prompt: payload.prompt,
+        options: {
+          aspectRatio: payload.aspectRatio || "1:1",
+          style: payload.style || "realistic",
+          seed: Math.floor(Math.random() * 1000000),
+        },
+      });
+      handleSendMessage(`Generate an image of: ${payload.prompt}`);
+    }
   };
 
   const handleDropFiles = (files: FileList | File[]) => {
@@ -1563,6 +1651,28 @@ export default function ChatWorkspacePage() {
                     {/* Content formatted with rich markdown and syntax code blocks */}
                     <MarkdownRenderer content={msg.content} />
 
+                    {/* Multimodal AI Creative Studio Artifacts (Image, Edited Image, Lyrics, Music, Voice) */}
+                    {msg.creativeArtifacts && msg.creativeArtifacts.length > 0 && (
+                      <div className="mt-4 space-y-4">
+                        {msg.creativeArtifacts.map((art, artIdx) => (
+                          <CreativeArtifactCard
+                            key={art.id || artIdx}
+                            artifact={art}
+                            onAction={handleCreativeAction}
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Rich Conversational Entity Cards */}
+                    {msg.entityCards && msg.entityCards.length > 0 && (
+                      <div className="mt-4 space-y-4">
+                        {msg.entityCards.map((card, cardIdx) => (
+                          <EntityCard key={card.id || cardIdx} card={card} />
+                        ))}
+                      </div>
+                    )}
+
                     {/* Citations */}
                     {msg.citations && msg.citations.length > 0 && (
                       <div className="mt-3 p-3 rounded-xl bg-slate-900/60 border border-white/5 space-y-1.5">
@@ -1861,6 +1971,16 @@ export default function ChatWorkspacePage() {
               </div>
             )}
 
+            {/* AI Creative Studio Drawer */}
+            <CreativeComposerDrawer
+              isOpen={isCreativeDrawerOpen}
+              onClose={() => setIsCreativeDrawerOpen(false)}
+              onSubmitCreative={(type, promptText, opts) => {
+                setPendingCreativeRequest({ type, prompt: promptText, options: opts });
+                setInput(promptText);
+              }}
+            />
+
             {/* Input Box with Drag & Drop */}
             <div
               onDragOver={(e) => {
@@ -1898,6 +2018,20 @@ export default function ChatWorkspacePage() {
                 aria-label="Attach file"
               >
                 <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsCreativeDrawerOpen(!isCreativeDrawerOpen)}
+                className={`p-2 sm:p-2.5 rounded-xl transition-all shrink-0 min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center ${
+                  isCreativeDrawerOpen
+                    ? "bg-purple-500/25 text-purple-300 border border-purple-500/40 shadow-lg shadow-purple-500/20"
+                    : "text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
+                }`}
+                title="AI Creative Studio (Image, Lyrics, Music, Voice)"
+                aria-label="AI Creative Studio"
+              >
+                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
 
               <textarea
@@ -1949,6 +2083,19 @@ export default function ChatWorkspacePage() {
                   <span className="hidden xs:flex items-center gap-1 text-emerald-400 font-medium">
                     <Search className="w-3 h-3" />
                     <span>Web Research</span>
+                  </span>
+                )}
+                {pendingCreativeRequest && (
+                  <span className="flex items-center gap-1 text-purple-400 font-semibold bg-purple-500/15 px-2 py-0.5 rounded-full border border-purple-500/30 text-[10px]">
+                    <Sparkles className="w-3 h-3" />
+                    <span>Creative: {pendingCreativeRequest.type}</span>
+                    <button
+                      onClick={() => setPendingCreativeRequest(null)}
+                      className="ml-1 text-zinc-400 hover:text-white font-bold"
+                      title="Clear creative action"
+                    >
+                      ×
+                    </button>
                   </span>
                 )}
               </div>

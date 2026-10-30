@@ -1,15 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { AIProviderAdapter, ChatChunk, ChatCompletionResponse } from "../types";
-<<<<<<< HEAD
 import { ProviderStatusService } from "../provider-status";
-=======
-import { ProviderConfig } from "../provider-config";
->>>>>>> 89333307460ebf8ad436d416b73f6472149b6207
 
 export class AnthropicAdapter implements AIProviderAdapter {
   providerKey = "anthropic" as const;
   private client: Anthropic | null = null;
-<<<<<<< HEAD
   private lastClientKey: string | null = null;
 
   private getClient(): Anthropic {
@@ -23,21 +18,6 @@ export class AnthropicAdapter implements AIProviderAdapter {
     if (!this.client || this.lastClientKey !== apiKey) {
       this.client = new Anthropic({ apiKey });
       this.lastClientKey = apiKey;
-=======
-  private cachedApiKey: string | null = null;
-
-  private getClient(): Anthropic {
-    const apiKey = ProviderConfig.getApiKey("anthropic");
-    if (!ProviderConfig.isRealKey(apiKey)) {
-      throw new Error(
-        "Anthropic API key is not configured. Set ANTHROPIC_API_KEY in your local environment (.env.local) to use Anthropic foundation models."
-      );
-    }
-
-    if (!this.client || this.cachedApiKey !== apiKey) {
-      this.client = new Anthropic({ apiKey });
-      this.cachedApiKey = apiKey;
->>>>>>> 89333307460ebf8ad436d416b73f6472149b6207
     }
 
     return this.client;
@@ -67,21 +47,12 @@ export class AnthropicAdapter implements AIProviderAdapter {
         messages: conversationMessages,
       });
 
-<<<<<<< HEAD
+      const textContent = response.content
+        .filter((c) => c.type === "text")
+        .map((c) => (c as { text: string }).text)
+        .join("");
+
       ProviderStatusService.recordSuccess("anthropic");
-
-      const textContent = response.content
-        .filter((c) => c.type === "text")
-        .map((c) => (c as { text: string }).text)
-        .join("");
-=======
-      const textContent = response.content
-        .filter((c) => c.type === "text")
-        .map((c) => (c as { text: string }).text)
-        .join("");
-
-      ProviderConfig.recordSuccess("anthropic");
->>>>>>> 89333307460ebf8ad436d416b73f6472149b6207
 
       return {
         id: response.id,
@@ -93,11 +64,7 @@ export class AnthropicAdapter implements AIProviderAdapter {
         finishReason: response.stop_reason || "end_turn",
       };
     } catch (err) {
-<<<<<<< HEAD
       ProviderStatusService.recordFailure("anthropic", err);
-=======
-      ProviderConfig.recordError("anthropic", err);
->>>>>>> 89333307460ebf8ad436d416b73f6472149b6207
       throw err;
     }
   }
@@ -111,11 +78,7 @@ export class AnthropicAdapter implements AIProviderAdapter {
     try {
       client = this.getClient();
     } catch (err) {
-<<<<<<< HEAD
       ProviderStatusService.recordFailure("anthropic", err);
-=======
-      ProviderConfig.recordError("anthropic", err);
->>>>>>> 89333307460ebf8ad436d416b73f6472149b6207
       throw err;
     }
 
@@ -147,11 +110,7 @@ export class AnthropicAdapter implements AIProviderAdapter {
       }
 
       const finalMessage = await stream.finalMessage();
-<<<<<<< HEAD
       ProviderStatusService.recordSuccess("anthropic");
-=======
-      ProviderConfig.recordSuccess("anthropic");
->>>>>>> 89333307460ebf8ad436d416b73f6472149b6207
 
       yield {
         id: finalMessage.id,
@@ -165,11 +124,7 @@ export class AnthropicAdapter implements AIProviderAdapter {
         },
       };
     } catch (err) {
-<<<<<<< HEAD
       ProviderStatusService.recordFailure("anthropic", err);
-=======
-      ProviderConfig.recordError("anthropic", err);
->>>>>>> 89333307460ebf8ad436d416b73f6472149b6207
       throw err;
     }
   }
