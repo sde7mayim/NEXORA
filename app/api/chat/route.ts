@@ -35,6 +35,7 @@ const ChatRequestSchema = z.object({
           })
         )
         .optional(),
+      creativeArtifacts: z.array(z.any()).optional(),
     })
   ),
   conversationId: z.string().default("conv-default"),
@@ -150,15 +151,45 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Resolve active user prompt and document context
+    // 4. Resolve active user prompt and task-intent separation
     const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
     const userPrompt = lastUserMessage?.content || "";
 
-    const docResult = DocumentRetrievalService.processDocumentContext({
-      query: userPrompt,
-      conversationId,
-      userId,
-    });
+    // 4.0 Early Task-Intent Detection for strict workflow separation
+    // (Music generation requests -> Music workflow; Image -> Image; Doc -> Doc; etc.)
+    const attachmentsList = (lastUserMessage?.attachments || []).map((a) => ({
+      name: a.name,
+      mimeType: a.mimeType,
+      content: a.content,
+    }));
+    const historyContext = messages.slice(0, -1).map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+    const creativeReq = parsed.data.creativeStudioRequest;
+    let cType = creativeReq?.type;
+    let cPrompt = creativeReq?.prompt || userPrompt;
+    let cOptions: Record<string, any> = creativeReq?.options || {};
+
+    if (!cType && lastUserMessage) {
+      const cDetect = CreativeDetector.detect(userPrompt, attachmentsList, historyContext);
+      if (cDetect.isCreativeIntent && cDetect.creativeType) {
+        cType = cDetect.creativeType;
+        cPrompt = cDetect.prompt || userPrompt;
+        cOptions = cDetect.parameters || {};
+      }
+    }
+
+    const isCreativeRequest = Boolean(cType);
+
+    // 4.1 Document context processing (Skipped during creative requests to prevent citation leakage)
+    const docResult = isCreativeRequest
+      ? { mode: "none" as const, targetDocument: null, retrievedSections: [], groundedSystemPrompt: "" }
+      : DocumentRetrievalService.processDocumentContext({
+          query: userPrompt,
+          conversationId,
+          userId,
+        });
 
     // 4a. If clarification is needed among multiple ambiguous documents
     if (docResult.mode === "clarification_needed" && docResult.clarificationPrompt) {
@@ -282,12 +313,14 @@ CORE RESPONSE GUIDELINES:
       });
     }
 
-    // 8. Live Web Research (if requested)
+    // 8. Live Web Research (strictly isolated: never runs for creative generation or document Q&A unless requested)
     const isLiveQuery =
       Boolean(includeWebSearch) ||
-      /\b(weather|temperature|forecast|climate|rain|humidity|today|now|current|latest|live|news|time in|score|rate)\b/i.test(
-        userPrompt
-      );
+      (!isCreativeRequest &&
+        !docResult.targetDocument &&
+        /\b(current weather|live score|breaking news|live price|today's weather|what is the weather)\b/i.test(
+          userPrompt
+        ));
 
     if (isLiveQuery && lastUserMessage) {
       try {
@@ -308,14 +341,11 @@ CORE RESPONSE GUIDELINES:
       }
     }
 
-    // 8.5. Intelligent Entity Detection & Multimodal Retrieval (Normal Chat)
+    // 8.5. Intelligent Entity Detection & Multimodal Retrieval (Normal Chat only)
+    // Strictly bypassed during creative generation (music, lyrics, image) or document Q&A to prevent unrelated cards (e.g. "The Omen")
     let retrievedEntityCards: EntityCardData[] = [];
-    if (lastUserMessage && (!files || files.length === 0)) {
+    if (!isCreativeRequest && !docResult.targetDocument && lastUserMessage && (!files || files.length === 0)) {
       try {
-        const historyContext = messages.slice(0, -1).map((m) => ({
-          role: m.role,
-          content: m.content,
-        }));
         const detection = EntityDetector.detect(lastUserMessage.content, historyContext);
         if (detection.isEntityQuery) {
           if (detection.comparisonEntities && detection.comparisonEntities.length > 1) {
@@ -363,104 +393,132 @@ CORE RESPONSE GUIDELINES:
 
     // 8.6. Intelligent Creative Studio Engine (Image, Edit, Lyrics, Music, Voice, Audio)
     let retrievedCreativeArtifacts: CreativeArtifact[] = [];
-    if (lastUserMessage) {
+    if (lastUserMessage && isCreativeRequest && cType) {
       try {
-        const creativeReq = parsed.data.creativeStudioRequest;
-        let cType = creativeReq?.type;
-        let cPrompt = creativeReq?.prompt || lastUserMessage.content;
-        let cOptions: Record<string, any> = creativeReq?.options || {};
+        if (cType === "image") {
+          const art = cOptions.isVariation
+            ? await ImageCreativeService.generateVariation({
+                prompt: cPrompt || "High resolution visual",
+                aspectRatio: cOptions.aspectRatio || "1:1",
+                style: cOptions.style,
+                seed: cOptions.seed,
+                variationInstruction: cOptions.variationInstruction as string,
+                provider: cOptions.provider,
+              })
+            : await ImageCreativeService.generateImage({
+                prompt: cPrompt || "High resolution visual",
+                aspectRatio: cOptions.aspectRatio || "1:1",
+                style: cOptions.style,
+                seed: cOptions.seed,
+                provider: cOptions.provider,
+                quality: cOptions.quality || "standard",
+              });
+          retrievedCreativeArtifacts.push(art);
+        } else if (cType === "edited-image") {
+          const firstImg = (lastUserMessage.attachments || []).find((a) =>
+            a.mimeType?.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(a.name)
+          );
 
-        if (!cType) {
-          const attachmentsList = (lastUserMessage.attachments || []).map((a) => ({
-            name: a.name,
-            mimeType: a.mimeType,
-            content: a.content,
-          }));
-          const historyContext = messages.slice(0, -1).map((m) => ({
-            role: m.role,
-            content: m.content,
-          }));
-          const cDetect = CreativeDetector.detect(lastUserMessage.content, attachmentsList, historyContext);
-          if (cDetect.isCreativeIntent && cDetect.creativeType) {
-            cType = cDetect.creativeType;
-            cPrompt = cDetect.prompt || lastUserMessage.content;
-            cOptions = cDetect.parameters || {};
+          let origUrl = cOptions.originalImageUrl || firstImg?.content;
+
+          // If no image in current turn, check if the previous message had a generated image
+          if (!origUrl && messages.length >= 2) {
+            for (let i = messages.length - 2; i >= 0; i--) {
+              const prevMsg = messages[i];
+              const prevArt = (prevMsg as any).creativeArtifacts?.find(
+                (a: any) => a.type === "image" || a.type === "edited-image"
+              );
+              if (prevArt?.mediaUrl) {
+                origUrl = prevArt.mediaUrl;
+                break;
+              }
+            }
           }
-        }
 
-        if (cType) {
-          if (cType === "image") {
-            const art = await ImageCreativeService.generateImage({
-              prompt: cPrompt,
-              aspectRatio: cOptions.aspectRatio || "1:1",
-              style: cOptions.style || "cinematic",
-              seed: cOptions.seed,
-            });
-            retrievedCreativeArtifacts.push(art);
-          } else if (cType === "edited-image") {
-            const firstImg = (lastUserMessage.attachments || []).find((a) =>
-              a.mimeType?.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(a.name)
-            );
-            const origUrl =
-              cOptions.originalImageUrl ||
-              firstImg?.content ||
-              "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Crect width='100%25' height='100%25' fill='%236366f1'/%3E%3Ctext x='50%25' y='50%25' fill='white' font-size='20' text-anchor='middle'%3EUploaded Image%3C/text%3E%3C/svg%3E";
+          if (!origUrl) {
+            // No image exists to edit — return clear request to upload an image
+            const noImageArt: CreativeArtifact = {
+              id: `art_edit_missing_${Date.now()}`,
+              type: "edited-image",
+              title: "Image Upload Required for Editing",
+              subtitle: "Attach or generate an image first",
+              status: "failed",
+              errorMessage: "Please upload or attach an image to perform this edit (such as background removal, background replacement, or color grading).",
+              createdAt: new Date().toISOString(),
+              imageMetadata: {
+                prompt: cPrompt || "Edit image",
+                aspectRatio: "1:1",
+                provider: "Nexora Image Processor",
+                editInstruction: cPrompt || "Edit image",
+                editOperation: cOptions.operation || cOptions.editOperation || "remove-bg",
+              },
+            };
+            retrievedCreativeArtifacts.push(noImageArt);
+          } else {
             const art = await ImageCreativeService.editImage({
               originalImageUrl: origUrl,
               instruction: cPrompt || cOptions.instruction || "Enhance image",
               operation: cOptions.operation || cOptions.editOperation || "remove-bg",
               targetBackground: cOptions.targetBackground,
-            });
-            retrievedCreativeArtifacts.push(art);
-          } else if (cType === "lyrics") {
-            const art = await LyricsCreativeService.generateLyrics({
-              theme: cPrompt || cOptions.theme || "Love and hope",
-              language: cOptions.language || "English",
-              genre: cOptions.genre || "Romantic Melody",
-              mood: cOptions.mood || "Love",
-              vocalStyle: cOptions.vocalStyle || "Duet",
-              songLength: cOptions.songLength || "standard",
-            });
-            retrievedCreativeArtifacts.push(art);
-          } else if (cType === "music") {
-            const art = await MusicCreativeService.generateMusic({
-              prompt: cPrompt || "Romantic melody soundtrack",
-              genre: cOptions.genre || "Tamil Melody",
-              mood: cOptions.mood || "Romantic",
-              lyricsSnippet: cOptions.lyricsSnippet,
-              fullExactLyrics: cOptions.fullExactLyrics,
-              keySignature: cOptions.keySignature,
-              vocalStyle: cOptions.vocalStyle,
-              instruments: cOptions.instruments,
-              isInstrumental: cOptions.isInstrumental ?? (cOptions.vocalStyle === "Instrumental"),
-              tempoBpm: cOptions.tempoBpm || 88,
-              durationSeconds: cOptions.durationSeconds || 28,
-            });
-            retrievedCreativeArtifacts.push(art);
-          } else if (cType === "voice") {
-            const art = await AudioCreativeService.generateVoice({
-              text: cPrompt || "Welcome to Nexora Creative Studio.",
-              voiceName: cOptions.voiceName || "nova",
-              speed: cOptions.speed || 1.0,
-            });
-            retrievedCreativeArtifacts.push(art);
-          } else if (cType === "transcription") {
-            const firstAudio = (lastUserMessage.attachments || []).find((a) =>
-              a.mimeType?.startsWith("audio/") || /\.(mp3|wav|ogg|m4a)$/i.test(a.name)
-            );
-            const art = await AudioCreativeService.transcribeAudio({
-              audioBase64: cOptions.audioBase64 || firstAudio?.content,
-              fileName: firstAudio?.name || "audio-recording.wav",
+              aspectRatio: cOptions.aspectRatio || "1:1",
             });
             retrievedCreativeArtifacts.push(art);
           }
+        } else if (cType === "lyrics") {
+          const art = await LyricsCreativeService.generateLyrics({
+            theme: cPrompt || cOptions.theme || "Love and hope",
+            language: cOptions.language || "English",
+            genre: cOptions.genre || "Romantic Melody",
+            mood: cOptions.mood || "Love",
+            vocalStyle: cOptions.vocalStyle || "Duet",
+            songLength: cOptions.songLength || "standard",
+          });
+          retrievedCreativeArtifacts.push(art);
+        } else if (cType === "music") {
+          const art = await MusicCreativeService.generateMusic({
+            prompt: cPrompt || "Romantic melody soundtrack",
+            genre: cOptions.genre || "Tamil Melody",
+            mood: cOptions.mood || "Romantic",
+            lyricsSnippet: cOptions.lyricsSnippet,
+            fullExactLyrics: cOptions.fullExactLyrics,
+            keySignature: cOptions.keySignature,
+            vocalStyle: cOptions.vocalStyle,
+            instruments: cOptions.instruments,
+            isInstrumental: cOptions.isInstrumental ?? (cOptions.vocalStyle === "Instrumental"),
+            tempoBpm: cOptions.tempoBpm || 88,
+            durationSeconds: cOptions.durationSeconds || 28,
+            provider: cOptions.provider,
+          });
+          retrievedCreativeArtifacts.push(art);
+        } else if (cType === "voice") {
+          const art = await AudioCreativeService.generateVoice({
+            text: cPrompt || "Welcome to Nexora Creative Studio.",
+            voiceName: cOptions.voiceName || "nova",
+            speed: cOptions.speed || 1.0,
+          });
+          retrievedCreativeArtifacts.push(art);
+        } else if (cType === "transcription") {
+          const firstAudio = (lastUserMessage.attachments || []).find((a) =>
+            a.mimeType?.startsWith("audio/") || /\.(mp3|wav|ogg|m4a)$/i.test(a.name)
+          );
+          const art = await AudioCreativeService.transcribeAudio({
+            audioBase64: cOptions.audioBase64 || firstAudio?.content,
+            fileName: firstAudio?.name || "audio-recording.wav",
+          });
+          retrievedCreativeArtifacts.push(art);
+        }
 
-          if (retrievedCreativeArtifacts.length > 0) {
+        if (retrievedCreativeArtifacts.length > 0) {
             const art = retrievedCreativeArtifacts[0];
             if (art.status === "failed") {
               contextualMessages.push({
                 role: "system",
-                content: `NEXORA CREATIVE STUDIO STATUS:\n- Attempted Artifact Type: ${art.type}\n- Status: FAILED (Capacity limit or provider unavailable)\n- Error: ${art.errorMessage || "Free provider capacity reached"}\n\nIMPORTANT CONVERSATIONAL DIRECTIVES:\n- A clean error notice with a Retry button is already displayed to the user above your chat response.\n- Inform the user courteously that the free image generation provider is temporarily congested or at capacity.\n- Guide them to click the "Retry Generation" button on the card above, or mention they can configure an OPENAI_API_KEY in .env.local for dedicated priority DALL-E 3 image generation.`,
+                content: `NEXORA CREATIVE STUDIO STATUS:\n- Attempted Artifact Type: ${art.type}\n- Status: FAILED (${art.errorMessage || "Provider not configured"})\n\nIMPORTANT CONVERSATIONAL DIRECTIVES:\n- An honest error notice is displayed to the user above your chat response.\n- Inform the user clearly and courteously about the configuration status: "${art.errorMessage || "Creative provider is not configured"}".\n- For image requests: guide them that OPENAI_API_KEY (DALL-E 3) or REPLICATE_API_TOKEN (FLUX) can be configured in .env.local, or to retry with Pollinations AI.\n- For music requests: guide them that SUNO_API_KEY or REPLICATE_API_TOKEN can be configured in .env.local, or the built-in synthesizer can be used.\n- For editing requests: guide them to attach or provide the image they wish to edit.\n- Never pretend media was generated, never fabricate fake URLs, and never describe non-existent playback or images.`,
+              });
+            } else if (art.type === "image" || art.type === "edited-image") {
+              contextualMessages.push({
+                role: "system",
+                content: `NEXORA CREATIVE STUDIO OUTPUT:\n- Generated Artifact Type: ${art.type}\n- Title: "${art.title}"\n- Description/Subtitle: ${art.subtitle || ""}\n\nCRITICAL CONVERSATIONAL DIRECTIVES FOR GENERATED IMAGE:\n- The actual generated image is displayed directly in the visual artifact card above your chat response.\n- Provide ONLY a brief, polite single-sentence caption (for example: "Here is your ${art.title || "image"}."). \n- DO NOT output design concepts, design tips, typography advice, sample prompts for Midjourney/DALL-E, or lengthy explanations. The generated image is the primary response.`,
               });
             } else {
               contextualMessages.push({
@@ -469,7 +527,6 @@ CORE RESPONSE GUIDELINES:
               });
             }
           }
-        }
       } catch (creativeErr) {
         console.warn("[App] Creative generation error:", creativeErr);
       }

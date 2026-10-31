@@ -14,7 +14,17 @@ export type ImageStylePreset =
   | "anime"
   | "product"
   | "logo"
-  | "social";
+  | "social"
+  | "watercolor"
+  | "oil-painting"
+  | "digital-art"
+  | "fantasy"
+  | "sci-fi"
+  | "minimalist"
+  | "vintage"
+  | "vector"
+  | "sketch"
+  | "abstract";
 
 export interface CreativeImageMetadata {
   prompt: string;
@@ -23,7 +33,13 @@ export interface CreativeImageMetadata {
   style?: ImageStylePreset;
   resolution?: string;
   provider: string;
+  model?: string;
+  format?: string;
   seed?: number;
+  quality?: "standard" | "hd";
+  isVariation?: boolean;
+  sourceArtifactId?: string;
+  variations?: string[];
   originalImagePreviewUrl?: string; // For edited images
   editInstruction?: string;          // For edited images
   editOperation?: "remove-bg" | "replace-bg" | "colorize" | "stylize" | "restore" | "custom";
@@ -52,6 +68,7 @@ export interface CreativeLyricsMetadata {
 
 export interface CreativeMusicMetadata {
   title: string;
+  language?: string;
   prompt?: string;
   lyricsSnippet?: string;
   exactLyrics?: string;

@@ -4,6 +4,7 @@ import {
   CreativeLyricsSection,
 } from "./creative-types";
 import { LyricsCreativeService } from "./lyrics-service";
+import { MusicProviderAdapter, MusicProviderType } from "./music-provider-adapter";
 
 export interface GenerateMusicOptions {
   prompt: string;
@@ -17,7 +18,7 @@ export interface GenerateMusicOptions {
   isInstrumental?: boolean;
   tempoBpm?: number;
   durationSeconds?: number;
-  provider?: "auto" | "synthesizer" | "suno" | "replicate" | "huggingface" | "elevenlabs";
+  provider?: "auto" | "synthesizer" | "suno" | "udio" | "replicate" | "elevenlabs" | "none";
 }
 
 export class MusicCreativeService {
@@ -94,35 +95,39 @@ export class MusicCreativeService {
 
     let mediaUrl = "";
     let providerUsed = "Nexora Studio High-Fidelity Synthesizer";
+    let status: "ready" | "failed" = "ready";
+    let errorMessage: string | undefined = undefined;
 
-    // 1. Check Cloud AI Music Providers if API keys are set
-    if (provider === "replicate" || (provider === "auto" && process.env.REPLICATE_API_TOKEN)) {
-      try {
-        const cloudAudio = await this.generateWithReplicateMusicGen(prompt, durationSeconds);
-        if (cloudAudio) {
-          mediaUrl = cloudAudio;
-          providerUsed = "Meta MusicGen (via Replicate)";
-        }
-      } catch (repErr) {
-        console.warn("[MusicCreativeService] Replicate MusicGen fallback to local synth:", repErr);
-      }
-    }
+    try {
+      const genResult = await MusicProviderAdapter.generate(
+        {
+          prompt,
+          genre,
+          mood,
+          title,
+          language: isTamil ? "Tamil" : "English",
+          exactLyrics,
+          vocalStyle,
+          keySignature,
+          instruments,
+          tempoBpm,
+          durationSeconds,
+          isInstrumental,
+        },
+        provider as MusicProviderType
+      );
 
-    // 2. High-Fidelity Algorithmic Synthesis Engine (Built-in Zero-Config Audio Generator)
-    // Generates a real, mathematically synthesized WAV audio file with melodic leads, chords, bass, and percussion
-    if (!mediaUrl) {
-      mediaUrl = this.synthesizeWavTrack({
-        genre,
-        mood,
-        tempoBpm,
-        durationSeconds,
-        isTamil: genre.toLowerCase().includes("tamil"),
-      });
-      providerUsed = "Nexora Studio High-Fidelity Synthesizer (Exact Lyrics Bound)";
+      mediaUrl = genResult.audioUrl;
+      providerUsed = genResult.provider;
+    } catch (err: any) {
+      console.error("[MusicCreativeService] Audio generation failed:", err);
+      status = "failed";
+      errorMessage = err?.message || "Music generation failed. Configured provider unavailable.";
     }
 
     const musicMetadata: CreativeMusicMetadata = {
       title,
+      language: isTamil ? "Tamil" : "English",
       prompt,
       lyricsSnippet: lyricsSnippet || exactLyrics.slice(0, 200),
       exactLyrics,
@@ -147,9 +152,10 @@ export class MusicCreativeService {
       id: `art_mus_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       type: "music",
       title,
-      subtitle: `${genre} • ${mood} • ${tempoBpm} BPM • ${durationSeconds}s`,
-      mediaUrl,
-      status: "ready",
+      subtitle: `${isTamil ? "Tamil" : "English"} • ${genre} • ${mood} • ${tempoBpm} BPM • ${durationSeconds}s`,
+      mediaUrl: mediaUrl || undefined,
+      status,
+      errorMessage,
       createdAt: new Date().toISOString(),
       musicMetadata,
     };

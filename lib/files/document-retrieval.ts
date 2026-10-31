@@ -62,7 +62,62 @@ export class DocumentRetrievalService {
     }
 
     if (allCandidates.length === 1) {
-      return { document: allCandidates[0], isAmbiguous: false, candidateDocs: allCandidates };
+      // If directDocuments was passed (explicit file in this request), it is the target
+      if (directDocuments && directDocuments.length > 0) {
+        return { document: allCandidates[0], isAmbiguous: false, candidateDocs: allCandidates };
+      }
+
+      // If resolving from stored conversation documents, verify the query actually pertains to the document
+      const qLower = query.toLowerCase();
+      const doc = allCandidates[0];
+      const baseName = doc.fileName.toLowerCase().replace(/\.[^/.]+$/, "");
+
+      const isCreativeOrUnrelated =
+        /\b(?:generate|create|make|compose|produce|sing|play)\s+(?:an?\s+)?(?:song|music|track|melody|beat|lyrics)\b/i.test(qLower) ||
+        /\b(?:draw|paint|sketch|generate|create)\s+(?:an?\s+)?(?:image|picture|photo|logo)\b/i.test(qLower) ||
+        /\b(?:write|pen)\s+(?:an?\s+)?(?:song|lyrics|poem)\b/i.test(qLower) ||
+        /\b(?:sing this song|convert these lyrics into a song|create music from these lyrics)\b/i.test(qLower);
+
+      if (isCreativeOrUnrelated) {
+        return { document: null, isAmbiguous: false, candidateDocs: allCandidates };
+      }
+
+      // Check for casual greetings or unrelated general chat
+      const isCasualGreeting = /^(hello|hi|hey|greetings|good\s+(morning|afternoon|evening)|how\s+are\s+you|who\s+are\s+you|what\s+can\s+you\s+do)[\s!.?]*$/i.test(qLower);
+      if (isCasualGreeting) {
+        return { document: null, isAmbiguous: false, candidateDocs: allCandidates };
+      }
+
+      // Check if query mentions file/doc terms, filename, or distinctive keywords
+      const mentionsDoc =
+        /\b(document\w*|doc|file|pdf|plan\w*|summar\w+|modules?|specifications?|requirements?|roadmap|implementation|phases?|contract|sections?|tables?|attached|uploaded|criteria|priorit\w+|p[0-3]|architectur\w+|simplif\w+|recommend\w*|scope|offline|sync|steps?|workflow|compare|comparison|difference|versus|extract|analysis|risks?)\b/i.test(qLower) ||
+        qLower.includes(doc.fileName.toLowerCase()) ||
+        qLower.includes(baseName);
+
+      const words = baseName.replace(/[^a-z0-9]/g, " ").split(/\s+/).filter((w) => w.length > 3);
+      const matchesDocKeywords = words.some((w) => qLower.includes(w));
+
+      // Also check if query mentions any section or heading from the parsed document structure
+      const headingsList: string[] = Array.isArray(doc.structure)
+        ? (doc.structure as any[]).map((s) => s.heading || s.title || "")
+        : Array.isArray(doc.structure?.headings)
+        ? doc.structure.headings.map((h) => h.title)
+        : Array.isArray(doc.structure?.sections)
+        ? doc.structure.sections.map((s) => s.heading)
+        : [];
+
+      const matchesStructureHeading = headingsList.some((h) => {
+        if (!h) return false;
+        const headingWords = h.toLowerCase().replace(/[^a-z0-9]/g, " ").split(/\s+/).filter((w) => w.length > 3);
+        return headingWords.some((hw) => qLower.includes(hw));
+      });
+
+      if (mentionsDoc || matchesDocKeywords || matchesStructureHeading) {
+        return { document: allCandidates[0], isAmbiguous: false, candidateDocs: allCandidates };
+      }
+
+      // Query is independent/unrelated to previously uploaded file: do not attach
+      return { document: null, isAmbiguous: false, candidateDocs: allCandidates };
     }
 
     // 2. If multiple documents exist, check if query specifically mentions a filename or title

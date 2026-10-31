@@ -83,6 +83,8 @@ export class EntityDetector {
   private static readonly LAPTOP_BRANDS_MODELS = [
     "xps",
     "macbook",
+    "macbook pro",
+    "macbook air",
     "thinkpad",
     "spectre",
     "zenbook",
@@ -91,18 +93,30 @@ export class EntityDetector {
     "razer blade",
     "surface laptop",
     "surface pro",
-    "legion",
-    "envy",
-    "pavilion",
-    "latitude",
+    "lenovo legion",
+    "legion laptop",
+    "hp envy",
+    "envy laptop",
+    "hp pavilion",
+    "pavilion laptop",
+    "dell latitude",
+    "latitude laptop",
+    "asus vivobook",
     "vivobook",
     "framework laptop",
     "ideapad",
-    "yoga",
+    "lenovo yoga",
+    "yoga laptop",
     "acer swift",
-    "predator",
-    "omen",
-    "victus",
+    "acer predator",
+    "predator laptop",
+    "hp omen",
+    "omen laptop",
+    "omen 16",
+    "omen 17",
+    "omen transcend",
+    "hp victus",
+    "victus laptop",
   ];
 
   // Smartphone brands & models
@@ -236,6 +250,17 @@ export class EntityDetector {
   static detect(currentQuery: string, history: MessageContext[] = []): EntityDetectionResult {
     const qTrimmed = currentQuery.trim();
     const qLower = qTrimmed.toLowerCase();
+
+    // -1. Task-Intent Separation: immediately reject creative creation requests (Music, Lyrics, Image, Speech, Code)
+    if (
+      /\b(?:generate|create|make|compose|produce|sing|play)\s+(?:an?\s+)?(?:song|music|track|melody|beat|lyrics)\b/i.test(qLower) ||
+      /\b(?:convert|turn)\s+(?:these\s+)?lyrics\s+into\s+(?:a\s+)?song\b/i.test(qLower) ||
+      /\b(?:draw|paint|sketch|generate|create)\s+(?:an?\s+)?(?:image|picture|photo|logo|portrait)\b/i.test(qLower) ||
+      /\b(?:write|pen)\s+(?:an?\s+)?(?:song|lyrics|poem)\b/i.test(qLower) ||
+      /\b(?:sing this song|convert these lyrics|create music from these lyrics)\b/i.test(qLower)
+    ) {
+      return { isEntityQuery: false };
+    }
 
     // 0. Immediate disqualification: technical, coding, or programming questions
     if (this.isGenericTechnicalQuery(qLower)) {
@@ -429,7 +454,8 @@ export class EntityDetector {
    */
   private static matchLaptop(qLower: string, raw: string): EntityDetectionResult | null {
     for (const model of this.LAPTOP_BRANDS_MODELS) {
-      if (qLower.includes(model)) {
+      const modelRegex = new RegExp(`\\b${model.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+      if (modelRegex.test(qLower)) {
         // Extract reasonable entity name
         const entityName = this.extractEntityTitle(raw, model, "laptop");
         return {

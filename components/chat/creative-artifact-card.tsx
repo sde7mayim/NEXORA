@@ -158,13 +158,37 @@ export function CreativeArtifactCard({ artifact, onAction }: CreativeArtifactCar
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDownloadMedia = (url: string, filename: string) => {
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  const handleDownloadMedia = async (url: string, filename: string) => {
+    try {
+      if (url.startsWith("data:") || url.startsWith("blob:")) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+      }
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+    } catch {
+      const a = document.createElement("a");
+      a.href = url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
   };
 
   const formatTime = (secs: number) => {
@@ -398,10 +422,24 @@ export function CreativeArtifactCard({ artifact, onAction }: CreativeArtifactCar
                       style: imgMeta?.style,
                     })
                   }
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 transition-all text-xs font-semibold"
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 transition-all text-[11px] font-semibold"
+                  title="Generate a visual variation"
                 >
                   <RotateCcw className="w-3 h-3" />
                   <span>Variation</span>
+                </button>
+                <button
+                  onClick={() =>
+                    onAction("edit-image", {
+                      originalImageUrl: currentDisplayUrl,
+                      prompt: imgMeta?.prompt,
+                    })
+                  }
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 transition-all text-[11px] font-semibold"
+                  title="Edit this image"
+                >
+                  <Edit3 className="w-3 h-3" />
+                  <span>Edit</span>
                 </button>
               </>
             )}
@@ -411,22 +449,45 @@ export function CreativeArtifactCard({ artifact, onAction }: CreativeArtifactCar
         {/* Lightbox Modal */}
         {lightboxOpen && artifact.mediaUrl && (
           <div
-            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+            className="fixed inset-0 z-50 bg-black/95 backdrop-blur-lg flex items-center justify-center p-4 animate-in fade-in duration-200"
             onClick={() => setLightboxOpen(false)}
           >
-            <div className="relative max-w-5xl max-h-[90vh] flex flex-col items-center">
-              <button
-                onClick={() => setLightboxOpen(false)}
-                className="absolute top-2 right-2 p-2 rounded-full bg-zinc-900/80 text-white hover:bg-zinc-800 transition-colors z-10"
-              >
-                <X className="w-5 h-5" />
-              </button>
+            <div className="relative max-w-6xl max-h-[92vh] flex flex-col items-center">
+              <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDownloadMedia(
+                      artifact.mediaUrl!,
+                      `nexora-${isEdited ? "edited" : "image"}-${Date.now()}.png`
+                    );
+                  }}
+                  className="p-2.5 rounded-full bg-zinc-900/90 text-white hover:bg-purple-600 transition-colors shadow-lg"
+                  title="Download full resolution"
+                >
+                  <Download className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setLightboxOpen(false)}
+                  className="p-2.5 rounded-full bg-zinc-900/90 text-white hover:bg-zinc-800 transition-colors shadow-lg"
+                  title="Close preview"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
               <img
                 src={artifact.mediaUrl}
                 alt={artifact.title}
-                className="max-h-[85vh] max-w-full rounded-xl object-contain shadow-2xl"
+                className="max-h-[86vh] max-w-full rounded-2xl object-contain shadow-2xl border border-white/10"
                 onClick={(e) => e.stopPropagation()}
               />
+              <div className="mt-3 px-4 py-1.5 rounded-full bg-black/80 backdrop-blur-md text-xs text-zinc-300 border border-white/10 flex items-center gap-2">
+                <span>{artifact.title}</span>
+                <span className="text-zinc-500">•</span>
+                <span className="text-purple-400 font-mono">{imgMeta?.resolution || "1024x1024"}</span>
+                <span className="text-zinc-500">•</span>
+                <span>{imgMeta?.provider}</span>
+              </div>
             </div>
           </div>
         )}
@@ -818,8 +879,79 @@ export function CreativeArtifactCard({ artifact, onAction }: CreativeArtifactCar
   // --------------------------------------------------------------------------
   // RENDER: MUSIC & AUDIO SONGS (AUDIO RESULT PLAYER)
   // --------------------------------------------------------------------------
-  if (artifact.type === "music" && artifact.musicMetadata) {
-    const meta = artifact.musicMetadata;
+  if (artifact.type === "music") {
+    // If generation failed or audio is unavailable, render an honest error card without fake playback controls
+    if (artifact.status === "failed" || !artifact.mediaUrl) {
+      return (
+        <div className="my-3 rounded-2xl overflow-hidden border border-rose-500/30 bg-slate-950/90 shadow-2xl backdrop-blur-xl">
+          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-rose-950/40 via-red-950/20 to-slate-900/60 border-b border-rose-500/20">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                <AlertCircle className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-white tracking-wide">
+                    {artifact.title || "Music Generation Unavailable"}
+                  </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                    Configuration Error
+                  </span>
+                </div>
+                <span className="text-[11px] text-zinc-400">
+                  {artifact.subtitle || "Music Provider Not Configured"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 flex flex-col items-center justify-center text-center space-y-3.5 bg-gradient-to-b from-rose-500/[0.04] to-transparent">
+            <div className="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/25 flex items-center justify-center text-rose-400">
+              <Music className="w-5 h-5" />
+            </div>
+            <div className="max-w-md space-y-1.5">
+              <h4 className="text-sm font-semibold text-zinc-200">Audio Provider Not Configured</h4>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                {artifact.errorMessage ||
+                  "A music generation provider has not been configured in your environment. Please configure SUNO_API_KEY, REPLICATE_API_TOKEN, or enable the built-in synthesizer in .env.local to generate audio."}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
+              {onAction && (
+                <button
+                  onClick={() =>
+                    onAction("retry-music", {
+                      prompt: artifact.musicMetadata?.prompt,
+                      genre: artifact.musicMetadata?.genre,
+                      fullExactLyrics: artifact.musicMetadata?.exactLyrics,
+                    })
+                  }
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Retry Generation</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const meta = artifact.musicMetadata || {
+      title: artifact.title,
+      genre: "Melody",
+      mood: "Romantic",
+      tempoBpm: 88,
+      durationSeconds: 28,
+      isInstrumental: true,
+      format: "audio/wav" as const,
+      provider: "Nexora Studio",
+    };
+
+    const songLanguage =
+      meta.language || (meta.genre?.toLowerCase().includes("tamil") ? "Tamil" : "English");
 
     return (
       <div className="my-3 rounded-2xl overflow-hidden border border-indigo-500/20 bg-slate-950/80 shadow-2xl backdrop-blur-xl transition-all hover:border-indigo-500/40">
@@ -833,10 +965,16 @@ export function CreativeArtifactCard({ artifact, onAction }: CreativeArtifactCar
               <Disc3 className={`w-4 h-4 ${isPlaying ? "animate-spin" : ""}`} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-bold text-white tracking-wide">{meta.title}</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                  Ready
+                </span>
                 <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
                   {meta.genre}
+                </span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                  {songLanguage}
                 </span>
                 {meta.vocalStyle && (
                   <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/5 text-zinc-400 border border-white/10">

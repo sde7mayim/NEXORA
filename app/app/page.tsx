@@ -965,6 +965,15 @@ export default function ChatWorkspacePage() {
         },
       });
       handleSendMessage(`Generate an image of: ${payload.prompt}`);
+    } else if (action === "edit-image" && payload) {
+      setPendingCreativeRequest({
+        type: "edited-image",
+        prompt: `Edit image: ${payload.prompt || ""}`,
+        options: {
+          originalImageUrl: payload.originalImageUrl,
+        },
+      });
+      setInput(`Change the background of this image to a modern studio background`);
     }
   };
 
