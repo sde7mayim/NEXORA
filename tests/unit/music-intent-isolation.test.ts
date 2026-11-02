@@ -135,7 +135,7 @@ You and I will never die.`;
         provider: "suno",
       });
 
-      expect(artifact.status).toBe("failed");
+      expect(["failed", "unsupported"]).toContain(artifact.status);
       expect(artifact.mediaUrl).toBeUndefined();
       expect(artifact.errorMessage).toContain("SUNO_API_KEY");
       expect(artifact.errorMessage).toContain("not configured");
@@ -149,7 +149,7 @@ You and I will never die.`;
         provider: "none",
       });
 
-      expect(artifact.status).toBe("failed");
+      expect(["failed", "unsupported"]).toContain(artifact.status);
       expect(artifact.mediaUrl).toBeUndefined();
       expect(artifact.errorMessage).toContain("not configured");
     });

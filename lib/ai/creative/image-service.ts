@@ -3,7 +3,7 @@
  *
  * Universal text-to-image, variation, and editing engine supporting:
  * - Dynamic prompt understanding & intelligent visual enhancement
- * - High-resolution multi-provider adapter (OpenAI DALL-E 3, Replicate, Hugging Face, Pollinations)
+ * - High-resolution multi-provider adapter (Google Imagen 3, OpenAI DALL-E 3, Replicate, Hugging Face, Nexora Native)
  * - True aspect ratio preservation (1024x1024, 1792x1024, 1024x1792)
  * - Safe image editing and before/after comparisons
  * - Robust error handling without fake images
@@ -11,6 +11,7 @@
 
 import {
   CreativeArtifact,
+  CreativeArtifactStatus,
   CreativeImageMetadata,
   ImageAspectRatio,
   ImageStylePreset,
@@ -22,7 +23,7 @@ export interface GenerateImageOptions {
   aspectRatio?: ImageAspectRatio;
   style?: ImageStylePreset;
   seed?: number;
-  provider?: ImageProviderType | "fail" | "pollinations-fail";
+  provider?: ImageProviderType | "fail" | "capacity-fail";
   quality?: "standard" | "hd";
 }
 
@@ -113,6 +114,10 @@ export class ImageCreativeService {
         detectedComposition = "eye-catching high-impact thumbnail composition with clear focal point";
       }
     }
+    if (/\b(?:industrial\s+expo|industrial\s+exhibition|manufacturing\s+expo|trade\s+expo|machinery\s+expo)\b/i.test(pLower)) {
+      if (!detectedLighting) detectedLighting = "professional architectural exhibition hall lighting with clean illumination";
+      if (!detectedComposition) detectedComposition = "sweeping wide-angle exhibition perspective with prominent technology showcases";
+    }
 
     // 3. Dynamic Prompt Enhancement
     let cleanedPrompt = pTrim;
@@ -127,6 +132,9 @@ export class ImageCreativeService {
     }
     if (/\b(?:christmas\s+thumbnail|thumbnail\s+(?:for|of)\s+christmas|a\s+thumbnail\s+for\s+christmas)\b/i.test(cleanedPrompt)) {
       cleanedPrompt = "festive Christmas celebration thumbnail with decorated Christmas tree, glowing holiday fairy lights, cozy winter atmosphere, and sparkling ornaments";
+    }
+    if (/\b(?:industrial\s+expo\s+thumbnail|thumbnail\s+(?:for|of)\s+industrial\s+expo|a\s+thumbnail\s+for\s+industrial\s+expo)\b/i.test(cleanedPrompt)) {
+      cleanedPrompt = "professional industrial expo exhibition thumbnail showcasing modern manufacturing technology, advanced robotic machinery, sleek trade show booths, and dynamic lighting";
     }
 
     // If prompt is already detailed (> 18 words), preserve exact prompt and append only necessary fidelity tokens
@@ -174,16 +182,16 @@ export class ImageCreativeService {
     const { optimizedPrompt, style: resolvedStyle } = this.optimizePrompt(prompt, style);
 
     // Handle explicit test failure flags
-    if ((provider as string) === "fail" || (provider as string) === "pollinations-fail") {
+    if ((provider as string) === "fail" || (provider as string) === "capacity-fail") {
       return {
         id: `art_img_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         type: "image",
         title: this.truncateTitle(prompt),
-        subtitle: `${resolvedStyle.toUpperCase()} • ${aspectRatio} • Provider Unavailable`,
+        subtitle: `${resolvedStyle.toUpperCase()} • ${aspectRatio} • Provider Capacity Limit`,
         mediaUrl: undefined,
         thumbnailUrl: undefined,
         status: "failed",
-        errorMessage: "Pollinations.ai — At its limit right now. The free service is full. Provider capacity reached. Reload in a few seconds.",
+        errorMessage: "Nexora Image Studio — Provider capacity limit reached or API credits exhausted. Please retry shortly or check API keys in .env.local.",
         createdAt: new Date().toISOString(),
         imageMetadata: {
           prompt,
@@ -191,7 +199,7 @@ export class ImageCreativeService {
           aspectRatio,
           style: resolvedStyle,
           resolution: `${dimensions.width}x${dimensions.height}`,
-          provider: "Pollinations Capacity Limit",
+          provider: "Capacity Limit Reached",
           seed,
         },
       };
@@ -236,15 +244,71 @@ export class ImageCreativeService {
       };
     } catch (err: any) {
       console.warn("[ImageCreativeService] Generation error:", err?.message || err);
+      const errMsg = err?.message || "AI image generation is temporarily unavailable. Please verify API configuration in .env.local or retry shortly.";
+      
+      let errorCategory: CreativeArtifact["errorCategory"] = "unknown";
+      let statusReason = "Generation Failed";
+      let suggestedNextStep = "Please retry shortly or verify configuration.";
+      let status: CreativeArtifactStatus = "failed";
+
+      if (/missing.*key|not configured|no api key|gemini_api_key.*not configured|openai_api_key.*not configured/i.test(errMsg)) {
+        errorCategory = "missing_api_key";
+        statusReason = "Missing API Key";
+        suggestedNextStep = "Configure GEMINI_API_KEY or OPENAI_API_KEY in .env.local to enable real image generation.";
+        status = "unsupported";
+      } else if (/unsupported model|model.*does not exist|not found for api version|unsupported for predict/i.test(errMsg)) {
+        errorCategory = "unsupported_model";
+        statusReason = "Unsupported Model";
+        suggestedNextStep = "The selected image model is not available for this provider account. Update model settings in .env.local.";
+        status = "unsupported";
+      } else if (/invalid parameter|unsupported parameter|invalid_request|unknown parameter/i.test(errMsg)) {
+        errorCategory = "invalid_provider_request";
+        statusReason = "Invalid Provider Request";
+        suggestedNextStep = "Review parameters passed to the image generation provider.";
+        status = "failed";
+      } else if (/credit_balance_exhausted|credits|billing|insufficient_quota|add credits/i.test(errMsg)) {
+        errorCategory = "provider_credits_exhausted";
+        statusReason = "Provider Credits Exhausted";
+        suggestedNextStep = "Your provider API credits are exhausted or billing is inactive. Add credits in OpenAI or Google AI Studio.";
+        status = "rate_limited";
+      } else if (/rate limit|too many requests|429|resource_exhausted/i.test(errMsg)) {
+        errorCategory = "provider_rate_limit";
+        statusReason = "Provider Rate Limit Exceeded";
+        suggestedNextStep = "Too many requests sent in a short window. Wait a few moments before trying again.";
+        status = "rate_limited";
+      } else if (/nexora.*quota|daily limit|plan limit/i.test(errMsg)) {
+        errorCategory = "nexora_quota_exceeded";
+        statusReason = "Nexora Quota Exceeded";
+        suggestedNextStep = "You have reached your Nexora plan generation limit. Upgrade to Pro for increased capacity.";
+        status = "rate_limited";
+      } else if (/timeout|timed out|abort/i.test(errMsg)) {
+        errorCategory = "provider_timeout";
+        statusReason = "Provider Timeout";
+        suggestedNextStep = "The provider took longer than 35 seconds to respond. Please try again.";
+        status = "failed";
+      } else if (/invalid image|malformed|corrupt|small.*empty/i.test(errMsg)) {
+        errorCategory = "invalid_image_response";
+        statusReason = "Invalid Image Response";
+        suggestedNextStep = "The provider returned an invalid image stream. Try refining the prompt.";
+        status = "failed";
+      } else if (/storage/i.test(errMsg)) {
+        errorCategory = "storage_failure";
+        statusReason = "Storage Failure";
+        suggestedNextStep = "Generated image could not be saved to disk or storage bucket.";
+        status = "failed";
+      }
+
       return {
         id: `art_img_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         type: "image",
         title: this.truncateTitle(prompt),
-        subtitle: `${resolvedStyle.toUpperCase()} • ${aspectRatio} • Generation Failed`,
+        subtitle: `${resolvedStyle.toUpperCase()} • ${aspectRatio} • ${statusReason}`,
         mediaUrl: undefined,
         thumbnailUrl: undefined,
-        status: "failed",
-        errorMessage: err?.message || "AI image generation is temporarily unavailable. Please verify API configuration in .env.local or retry shortly.",
+        status,
+        errorMessage: errMsg,
+        errorCategory,
+        suggestedNextStep,
         createdAt: new Date().toISOString(),
         imageMetadata: {
           prompt,
@@ -252,7 +316,7 @@ export class ImageCreativeService {
           aspectRatio,
           style: resolvedStyle,
           resolution: `${dimensions.width}x${dimensions.height}`,
-          provider: "Generation Failed",
+          provider: statusReason,
           seed,
         },
       };

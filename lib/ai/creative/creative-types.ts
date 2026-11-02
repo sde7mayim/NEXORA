@@ -4,7 +4,37 @@ export type CreativeArtifactType =
   | "lyrics"
   | "music"
   | "voice"
-  | "transcription";
+  | "transcription"
+  | "video";
+
+export type CreativeIntentType =
+  | "image_generation"
+  | "image_edit"
+  | "image_variation"
+  | "music_generation"
+  | "lyrics_generation"
+  | "video_generation"
+  | "ordinary_text_chat";
+
+export type CreativeArtifactStatus =
+  | "pending"
+  | "success"
+  | "ready"
+  | "failed"
+  | "rate_limited"
+  | "unsupported";
+
+export type CreativeErrorCategory =
+  | "missing_api_key"
+  | "unsupported_model"
+  | "invalid_provider_request"
+  | "provider_rate_limit"
+  | "provider_credits_exhausted"
+  | "nexora_quota_exceeded"
+  | "provider_timeout"
+  | "invalid_image_response"
+  | "storage_failure"
+  | "unknown";
 
 export type ImageAspectRatio = "1:1" | "16:9" | "9:16" | "4:3" | "3:4";
 export type ImageStylePreset =
@@ -112,25 +142,39 @@ export interface CreativeTranscriptionMetadata {
   }>;
 }
 
+export interface CreativeVideoMetadata {
+  prompt: string;
+  durationSeconds?: number;
+  resolution?: string;
+  aspectRatio?: string;
+  provider?: string;
+  model?: string;
+  format?: string;
+}
+
 export interface CreativeArtifact {
   id: string;
   type: CreativeArtifactType;
   title: string;
   subtitle?: string;
-  mediaUrl?: string; // Image URL, data URL, audio URL
+  mediaUrl?: string; // Image URL, data URL, audio URL, video URL
   thumbnailUrl?: string;
-  status: "ready" | "processing" | "failed";
+  status: CreativeArtifactStatus;
   errorMessage?: string;
+  errorCategory?: CreativeErrorCategory;
+  suggestedNextStep?: string;
   createdAt: string;
   imageMetadata?: CreativeImageMetadata;
   lyricsMetadata?: CreativeLyricsMetadata;
   musicMetadata?: CreativeMusicMetadata;
   voiceMetadata?: CreativeVoiceMetadata;
   transcriptionMetadata?: CreativeTranscriptionMetadata;
+  videoMetadata?: CreativeVideoMetadata;
 }
 
 export interface CreativeDetectionResult {
   isCreativeIntent: boolean;
+  intent: CreativeIntentType;
   creativeType?: CreativeArtifactType;
   prompt?: string;
   parameters?: Record<string, unknown>;

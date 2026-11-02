@@ -8,6 +8,33 @@ export interface QuotaRecord {
   reservedResearch: number;
 }
 
+export interface OperationUsageRecord {
+  requestId: string;
+  userId: string;
+  workspaceId?: string;
+  plan: PlanTier;
+  capability: string;
+  selectedModel: string;
+  actualProvider?: string;
+  actualModel?: string;
+  creditsReserved: number;
+  creditsConsumed: number;
+  status: "success" | "failed" | "rate_limited" | "unsupported";
+  failureCategory?:
+    | "quota_exceeded"
+    | "rate_limit"
+    | "credits_exhausted"
+    | "missing_key"
+    | "unsupported_model"
+    | "invalid_request"
+    | "timeout"
+    | "file_parsing_failure"
+    | "generation_failure";
+  timestamp: string;
+}
+
+const operationUsageLog: OperationUsageRecord[] = [];
+
 // In-memory ledger for fast local verification and unit testing,
 // mirrored with Supabase table `quota_reservations` when connected.
 const activeReservations = new Map<
@@ -96,7 +123,7 @@ export class EntitlementEngine {
    */
   static checkCreativeQuota(
     planTier: PlanTier,
-    creativeType: "image" | "image-edit" | "lyrics" | "music" | "audio",
+    creativeType: "image" | "image-edit" | "lyrics" | "music" | "audio" | "video",
     monthlyUsed: number
   ): { allowed: boolean; reason?: string; used: number; limit: number } {
     const plan = PLAN_CONFIGS[planTier];
@@ -123,6 +150,10 @@ export class EntitlementEngine {
       case "audio":
         limit = plan.monthlyAudioMinutes;
         label = "Voice & audio minutes";
+        break;
+      case "video":
+        limit = planTier === "enterprise" ? 50 : planTier === "pro" ? 15 : 2;
+        label = "Video generation";
         break;
     }
 
@@ -184,5 +215,31 @@ export class EntitlementEngine {
     if (!res) return false;
     res.status = "released";
     return true;
+  }
+
+  /**
+   * Records a transparent usage audit entry for an operation.
+   */
+  static recordOperationUsage(record: Omit<OperationUsageRecord, "timestamp">): OperationUsageRecord {
+    const entry: OperationUsageRecord = {
+      ...record,
+      timestamp: new Date().toISOString(),
+    };
+    operationUsageLog.push(entry);
+    // Keep bounded history in memory
+    if (operationUsageLog.length > 500) {
+      operationUsageLog.shift();
+    }
+    return entry;
+  }
+
+  /**
+   * Retrieves operation usage logs for audit or billing inspection.
+   */
+  static getOperationUsageLogs(userId?: string): OperationUsageRecord[] {
+    if (userId) {
+      return operationUsageLog.filter((l) => l.userId === userId);
+    }
+    return [...operationUsageLog];
   }
 }

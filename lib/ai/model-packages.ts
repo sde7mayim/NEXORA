@@ -403,7 +403,7 @@ export class ModelReleasePackageManager {
     const capabilityChanges: Record<string, { from: boolean; to: boolean }> = {};
     for (const k of capKeys) {
       if (pkgA.capabilities[k] !== pkgB.capabilities[k]) {
-        capabilityChanges[k] = { from: pkgA.capabilities[k], to: pkgB.capabilities[k] };
+        capabilityChanges[k] = { from: Boolean(pkgA.capabilities[k]), to: Boolean(pkgB.capabilities[k]) };
       }
     }
 

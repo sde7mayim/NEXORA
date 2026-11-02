@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 
-export type AIProviderKey = "openai" | "anthropic" | "gemini";
+export type AIProviderKey = "openai" | "anthropic" | "gemini" | "replicate" | "suno" | "nexora";
 export type ProviderKey = AIProviderKey;
 
 export type ProviderStatus =
@@ -38,6 +38,9 @@ const runtimeState: Record<ProviderKey, ProviderRuntimeState> = {
   openai: { status: "configured_unverified", lastCheckedAt: 0, consecutiveFailures: 0 },
   anthropic: { status: "configured_unverified", lastCheckedAt: 0, consecutiveFailures: 0 },
   gemini: { status: "configured_unverified", lastCheckedAt: 0, consecutiveFailures: 0 },
+  replicate: { status: "configured_unverified", lastCheckedAt: 0, consecutiveFailures: 0 },
+  suno: { status: "configured_unverified", lastCheckedAt: 0, consecutiveFailures: 0 },
+  nexora: { status: "available", lastCheckedAt: 0, consecutiveFailures: 0 },
 };
 
 /**
@@ -125,6 +128,15 @@ export class ProviderStatusService {
       case "gemini":
         key = readEnvVariable(["GEMINI_API_KEY", "GOOGLE_API_KEY"]);
         break;
+      case "replicate":
+        key = readEnvVariable(["REPLICATE_API_TOKEN"]);
+        break;
+      case "suno":
+        key = readEnvVariable(["SUNO_API_KEY"]);
+        break;
+      case "nexora":
+        key = "internal-native";
+        break;
     }
     return key || undefined;
   }
@@ -141,7 +153,7 @@ export class ProviderStatusService {
    * Returns a list of all providers that have valid API keys on this machine.
    */
   static getConfiguredProviders(): ProviderKey[] {
-    const all: ProviderKey[] = ["gemini", "openai", "anthropic"];
+    const all: ProviderKey[] = ["gemini", "openai", "anthropic", "replicate", "suno", "nexora"];
     return all.filter((p) => this.isConfigured(p));
   }
 

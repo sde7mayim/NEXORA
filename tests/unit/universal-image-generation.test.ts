@@ -331,12 +331,12 @@ describe("NEXORA — UNIVERSAL AI IMAGE GENERATION SYSTEM", () => {
     it("should return simulated capacity limit error properly without faking images", async () => {
       const artifact = await ImageCreativeService.generateImage({
         prompt: "A man in a coat suit",
-        provider: "pollinations-fail",
+        provider: "capacity-fail",
       });
 
       expect(artifact.status).toBe("failed");
       expect(artifact.mediaUrl).toBeUndefined();
-      expect(artifact.errorMessage).toContain("Pollinations.ai — At its limit right now");
+      expect(artifact.errorMessage).toContain("capacity limit reached");
     });
 
     it("should generate a valid image artifact with resolution and provider metadata via default auto adapter", async () => {
@@ -348,10 +348,27 @@ describe("NEXORA — UNIVERSAL AI IMAGE GENERATION SYSTEM", () => {
 
       expect(artifact.status).toBe("ready");
       expect(artifact.mediaUrl).toBeDefined();
-      expect(artifact.mediaUrl).toContain("pollinations.ai");
+      expect(artifact.mediaUrl?.startsWith("data:image/") || artifact.mediaUrl?.startsWith("https://")).toBe(true);
+      expect(artifact.mediaUrl).not.toContain("pollinations.ai");
       expect(artifact.imageMetadata?.aspectRatio).toBe("16:9");
       expect(["1024x576", "1792x1024"]).toContain(artifact.imageMetadata?.resolution);
-      expect(artifact.imageMetadata?.provider).toContain("Pollinations AI");
+      expect(artifact.imageMetadata?.provider).not.toContain("Pollinations");
+    });
+
+    it("should generate a 16:9 industrial expo thumbnail with genuine Nexora-branded output and no third-party watermarks", async () => {
+      const artifact = await ImageCreativeService.generateImage({
+        prompt: "thumbnail for industrial expo",
+        aspectRatio: "16:9",
+        style: "cinematic",
+      });
+
+      expect(artifact.status).toBe("ready");
+      expect(artifact.mediaUrl).toBeDefined();
+      expect(artifact.mediaUrl?.startsWith("data:image/") || artifact.mediaUrl?.startsWith("https://")).toBe(true);
+      expect(artifact.mediaUrl).not.toContain("pollinations.ai");
+      expect(artifact.imageMetadata?.provider).not.toContain("Pollinations");
+      expect(artifact.imageMetadata?.aspectRatio).toBe("16:9");
+      expect(artifact.imageMetadata?.revisedPrompt?.toLowerCase()).toContain("industrial");
     });
   });
 
@@ -512,7 +529,8 @@ describe("NEXORA — UNIVERSAL AI IMAGE GENERATION SYSTEM", () => {
       expect(artifact.status).toBe("ready");
       expect(artifact.mediaUrl).toBeDefined();
       expect(typeof artifact.mediaUrl).toBe("string");
-      expect(artifact.mediaUrl).toMatch(/^https?:\/\//i);
+      expect(artifact.mediaUrl?.startsWith("data:image/") || artifact.mediaUrl?.startsWith("https://")).toBe(true);
+      expect(artifact.mediaUrl).not.toContain("pollinations.ai");
       expect(artifact.imageMetadata?.aspectRatio).toBe("16:9");
       expect(artifact.imageMetadata?.resolution).toBe("1024x576");
       expect(artifact.imageMetadata?.revisedPrompt?.toLowerCase()).toContain("christmas");

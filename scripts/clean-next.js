@@ -55,12 +55,42 @@ if (fs.existsSync(nextDir)) {
   }
 }
 
+// Function to recursively find all directory relative paths
+function getAllDirs(dir, baseDir = dir) {
+  let results = [];
+  try {
+    const list = fs.readdirSync(dir, { withFileTypes: true });
+    for (const item of list) {
+      if (item.isDirectory() && item.name !== 'node_modules' && item.name !== '.next' && item.name !== '.git') {
+        const fullPath = path.join(dir, item.name);
+        const relPath = path.relative(baseDir, fullPath).replace(/\\/g, '/');
+        results.push(relPath);
+        results = results.concat(getAllDirs(fullPath, baseDir));
+      }
+    }
+  } catch (e) {}
+  return results;
+}
+
+const appRoot = path.join(__dirname, '..', 'app');
+const appSubDirs = fs.existsSync(appRoot) ? getAllDirs(appRoot) : [];
+
 const commonDirs = [
   '.next',
   '.next/server',
   '.next/server/app',
   '.next/server/app/api',
   '.next/server/app/app',
+  '.next/static',
+  '.next/static/chunks',
+  '.next/static/chunks/app',
+  '.next/static/chunks/app/app',
+  '.next/static/chunks/app/app/files',
+  '.next/types',
+  '.next/types/app',
+  ...appSubDirs.map(d => `.next/server/app/${d}`),
+  ...appSubDirs.map(d => `.next/static/chunks/app/${d}`),
+  ...appSubDirs.map(d => `.next/types/app/${d}`),
 ];
 
 for (const d of commonDirs) {

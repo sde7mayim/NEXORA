@@ -1,6 +1,7 @@
 import {
   CreativeArtifactType,
   CreativeDetectionResult,
+  CreativeIntentType,
   ImageAspectRatio,
   ImageStylePreset,
 } from "./creative-types";
@@ -37,15 +38,22 @@ export class CreativeDetector {
       /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(a.name)
     );
 
-    // 0. Image Understanding (Describe/explain image -> routes to text/multimodal vision response)
-    if (this.isImageUnderstandingIntent(qLower)) {
-      return { isCreativeIntent: false };
+    // 0. Image Understanding / Explanation / Technical question (Routes to text/multimodal vision response)
+    if (this.isImageUnderstandingIntent(qLower) || this.isOrdinaryTextChatIntent(qLower)) {
+      return { isCreativeIntent: false, intent: "ordinary_text_chat" };
+    }
+
+    // 0b. Conversational Creative Follow-up (e.g. "make it cinematic", "make it more emotional", "change to 16:9")
+    const followUpMatch = this.detectCreativeFollowUp(qLower, query, history);
+    if (followUpMatch) {
+      return followUpMatch;
     }
 
     // 1. Audio Transcription & Analysis
     if (hasAudioAttachment || this.isTranscriptionIntent(qLower)) {
       return {
         isCreativeIntent: true,
+        intent: "ordinary_text_chat",
         creativeType: "transcription",
         prompt: query,
         parameters: {
@@ -54,17 +62,24 @@ export class CreativeDetector {
       };
     }
 
-    // 2. Image Variation (Produces distinct variation of existing visual - prioritized before edit)
-    const variationMatch = this.detectImageVariation(qLower, query);
-    if (variationMatch) {
-      return variationMatch;
+    // 2. Video Generation (Prioritized to avoid collision with general image verbs)
+    const videoMatch = this.detectVideoGeneration(qLower, query);
+    if (videoMatch) {
+      return videoMatch;
     }
 
-    // 3. Image Editing (Requires or pairs with uploaded image or explicit reference to current image)
+    // 3. Image Variation (Produces distinct variation of existing visual - prioritized before edit)
+    const variationMatch = this.detectImageVariation(qLower, query);
+    if (variationMatch) {
+      return { ...variationMatch, intent: "image_variation" };
+    }
+
+    // 4. Image Editing (Requires or pairs with uploaded image or explicit reference to current image)
     if (this.isImageEditIntent(qLower)) {
       const editOp = this.resolveEditOperation(qLower);
       return {
         isCreativeIntent: true,
+        intent: "image_edit",
         creativeType: "edited-image",
         prompt: query,
         parameters: {
@@ -76,31 +91,148 @@ export class CreativeDetector {
       };
     }
 
-    // 4. Image Generation (Universal Text to Image across any subject)
+    // 5. Image Generation (Universal Text to Image across any subject)
     const imageGenMatch = this.detectImageGeneration(qLower, query);
     if (imageGenMatch) {
-      return imageGenMatch;
+      return { ...imageGenMatch, intent: "image_generation" };
     }
 
-    // 5. Music & Song Audio Generation (Prioritized to catch "Generate a song", "Create a song for these lyrics", "Make a melody")
+    // 6. Music & Song Audio Generation (Prioritized to catch "Generate a song", "Create a song for these lyrics", "Make a melody")
     const musicMatch = this.detectMusicGeneration(qLower, query);
     if (musicMatch) {
-      return musicMatch;
+      return { ...musicMatch, intent: "music_generation" };
     }
 
-    // 6. Lyrics Generation & Theme Modification (Evaluates "Write a song", "Write lyrics", "Change the song theme")
+    // 7. Lyrics Generation & Theme Modification (Evaluates "Write a song", "Write lyrics", "Change the song theme")
     const lyricsMatch = this.detectLyricsGeneration(qLower, query, history);
     if (lyricsMatch) {
-      return lyricsMatch;
+      return { ...lyricsMatch, intent: "lyrics_generation" };
     }
 
-    // 7. Voice / Text-to-Speech Generation
+    // 8. Voice / Text-to-Speech Generation
     const voiceMatch = this.detectVoiceGeneration(qLower, query);
     if (voiceMatch) {
-      return voiceMatch;
+      return { ...voiceMatch, intent: "ordinary_text_chat" };
     }
 
-    return { isCreativeIntent: false };
+    return { isCreativeIntent: false, intent: "ordinary_text_chat" };
+  }
+
+  private static isOrdinaryTextChatIntent(qLower: string): boolean {
+    return /\b(?:explain\s+how|how\s+does|how\s+to\s+write\s+code|what\s+is\s+(?:an?\s+)?ai|what\s+is\s+(?:midjourney|dall-?e|suno|udio|stable\s+diffusion|diffusion)|difference\s+between|tutorial\s+on|guide\s+to)\b/i.test(
+      qLower
+    );
+  }
+
+  private static detectVideoGeneration(qLower: string, raw: string): CreativeDetectionResult | null {
+    const isVideoGen =
+      /^(?:make|generate|create|produce|render|animate)\s+(?:an?\s+)?(?:short\s+)?(?:video|clip|animation|footage|motion\s+graphic|reel)\b/i.test(
+        qLower
+      ) ||
+      /\b(?:video|clip|animation)\s+of\s+(.+)/i.test(qLower) ||
+      /\b(?:make|generate|create)\s+(?:a\s+)?video\b/i.test(qLower) ||
+      /\b(?:video|clip)\s+(?:create\s+pannu|generate\s+pannu|venum|panna\s+mudiyuma)\b/i.test(qLower) ||
+      /\b(?:காணொளி|வீடியோ)\s*(?:உருவாக்கு|வேணும்|செய்)\b/i.test(qLower);
+
+    if (!isVideoGen) return null;
+
+    let cleanPrompt = raw
+      .replace(
+        /^(?:can\s+you\s+)?(?:please\s+)?(?:make|generate|create|produce|render|animate)\s+(?:an?\s+)?(?:short\s+)?(?:video|clip|animation|reel|motion\s+graphic)\s+(?:of|about|showing|depicting|with|for)?\s*/i,
+        ""
+      )
+      .replace(/\b(?:video|clip)\s+(?:create\s+pannu|generate\s+pannu|venum)\b/gi, "")
+      .replace(/[.!?]+$/, "")
+      .trim();
+
+    if (!cleanPrompt) cleanPrompt = raw.trim();
+    cleanPrompt = cleanPrompt.replace(/^(?:an?\s+)?(?:image|picture|photo|photograph|drawing|illustration)\s+(?:of\s+|about\s+|showing\s+|a\s+|an\s+)?/i, "").trim();
+    if (!cleanPrompt) cleanPrompt = raw.trim();
+
+    return {
+      isCreativeIntent: true,
+      intent: "video_generation",
+      creativeType: "video",
+      prompt: cleanPrompt,
+    };
+  }
+
+  /**
+   * Preserves creative subject across follow-up requests (e.g. "make it cinematic", "make it more emotional").
+   */
+  private static detectCreativeFollowUp(
+    qLower: string,
+    raw: string,
+    history: MessageContext[] = []
+  ): CreativeDetectionResult | null {
+    if (!history || history.length === 0) return null;
+
+    const isFollowUpDirective =
+      /^(?:make\s+it|turn\s+it\s+into|change\s+(?:the\s+)?(?:style\s+)?to|now\s+in|give\s+it|add\s+more|more|can\s+you\s+make\s+it)\s+(.+)/i.test(
+        qLower
+      ) ||
+      /^(?:cinematic|realistic|anime|3d|photorealistic|more\s+emotional|faster|acoustic|16:9|9:16|4:3|in\s+tamil)$/i.test(
+        qLower
+      );
+
+    if (!isFollowUpDirective) return null;
+
+    // Scan history backwards for the most recent creative user request
+    for (let i = history.length - 1; i >= 0; i--) {
+      const msg = history[i];
+      if (msg.role === "user") {
+        const prevRes = this.detect(msg.content, [], []);
+        if (prevRes.isCreativeIntent && prevRes.prompt) {
+          const originalSubject = prevRes.prompt;
+
+          if (prevRes.intent === "image_generation" || prevRes.intent === "image_variation") {
+            const combinedPrompt = `${originalSubject}, ${raw.replace(/^(?:make\s+it|change\s+it\s+to)\s+/i, "")}`;
+            let style: ImageStylePreset = "cinematic";
+            if (/\banime\b/i.test(qLower)) style = "anime";
+            else if (/\b3d\b/i.test(qLower)) style = "3d";
+            else if (/\brealistic|photo\b/i.test(qLower)) style = "realistic";
+
+            let aspectRatio: ImageAspectRatio = "1:1";
+            if (/\b16:9\b/i.test(qLower)) aspectRatio = "16:9";
+            else if (/\b9:16\b/i.test(qLower)) aspectRatio = "9:16";
+
+            return {
+              isCreativeIntent: true,
+              intent: "image_variation",
+              creativeType: "image",
+              prompt: combinedPrompt,
+              parameters: {
+                style,
+                aspectRatio,
+                variationInstruction: raw,
+              },
+            };
+          }
+
+          if (prevRes.intent === "music_generation") {
+            const combinedPrompt = `${originalSubject}, ${raw.replace(/^(?:make\s+it|change\s+it\s+to)\s+/i, "")}`;
+            return {
+              isCreativeIntent: true,
+              intent: "music_generation",
+              creativeType: "music",
+              prompt: combinedPrompt,
+            };
+          }
+
+          if (prevRes.intent === "lyrics_generation") {
+            const combinedTheme = `${originalSubject}, ${raw.replace(/^(?:make\s+it|change\s+it\s+to)\s+/i, "")}`;
+            return {
+              isCreativeIntent: true,
+              intent: "lyrics_generation",
+              creativeType: "lyrics",
+              prompt: combinedTheme,
+            };
+          }
+        }
+      }
+    }
+
+    return null;
   }
 
   private static isImageUnderstandingIntent(qLower: string): boolean {
@@ -158,6 +290,7 @@ export class CreativeDetector {
 
     return {
       isCreativeIntent: true,
+      intent: "image_variation",
       creativeType: "image",
       prompt: raw.trim(),
       parameters: {
@@ -376,7 +509,7 @@ export class CreativeDetector {
       cleanPrompt = raw.replace(/[.!?]+$/, "").trim();
     } else if (colloquialWantMatch) {
       cleanPrompt = wantSubject
-        .replace(/^(?:an?\s+)?(?:(?:[a-z0-9_-]+\s+){0,3}(?:image|picture|photo|photograph|portrait|illustration|drawing|visual|wallpaper|render)\s*(?:of|about|showing|depicting|with|for)\s*)?/i, "")
+        .replace(/^(?:an?\s+)?(?:(?:[a-z0-9_-]+\s+){0,3}(?:image|picture|photo|photograph|portrait|illustration|drawing|visual|wallpaper|render)\s*(?:of|about|showing|depicting|with|for|a\s+|an\s+)?\s*)?/i, "")
         .trim();
       if (!cleanPrompt) cleanPrompt = wantSubject;
     } else if (drawMatch) {
@@ -412,6 +545,8 @@ export class CreativeDetector {
       cleanPrompt = raw.replace(/\b(?:create\s+pannu|generate\s+pannu|venum|vara)\b/gi, "").trim() || raw.trim();
     }
 
+    if (!cleanPrompt) cleanPrompt = raw.trim();
+    cleanPrompt = cleanPrompt.replace(/^(?:an?\s+)?(?:image|picture|photo|photograph|drawing|illustration)\s+(?:of\s+|about\s+|showing\s+|a\s+|an\s+)?/i, "").trim();
     if (!cleanPrompt) cleanPrompt = raw.trim();
 
     // 3. Detect aspect ratio
@@ -469,6 +604,7 @@ export class CreativeDetector {
 
     return {
       isCreativeIntent: true,
+      intent: "image_generation",
       creativeType: "image",
       prompt: cleanPrompt,
       parameters: {
@@ -568,6 +704,7 @@ export class CreativeDetector {
 
     return {
       isCreativeIntent: true,
+      intent: "lyrics_generation",
       creativeType: "lyrics",
       prompt: raw,
       parameters: {
@@ -728,6 +865,7 @@ export class CreativeDetector {
 
     return {
       isCreativeIntent: true,
+      intent: "music_generation",
       creativeType: "music",
       prompt: raw,
       parameters: {
@@ -761,6 +899,7 @@ export class CreativeDetector {
 
       return {
         isCreativeIntent: true,
+        intent: "ordinary_text_chat",
         creativeType: "voice",
         prompt: textToRead,
         parameters: {

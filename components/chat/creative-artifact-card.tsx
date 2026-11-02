@@ -210,11 +210,60 @@ export function CreativeArtifactCard({ artifact, onAction }: CreativeArtifactCar
 
     const isFailed =
       artifact.status === "failed" ||
+      artifact.status === "rate_limited" ||
+      artifact.status === "unsupported" ||
       imageLoadError ||
-      (!currentDisplayUrl && artifact.status !== "processing");
+      (!currentDisplayUrl && artifact.status !== "pending");
 
     // ERROR & RETRY VIEW (Prevents showing broken images, rate-limit HTML or broken banners)
     if (isFailed) {
+      const category = artifact.errorCategory;
+      let badgeText = "Generation Failed";
+      let errorTitle = "Image Generation Unavailable";
+
+      switch (category) {
+        case "missing_api_key":
+          badgeText = "Missing API Key";
+          errorTitle = "Provider Not Configured";
+          break;
+        case "unsupported_model":
+          badgeText = "Unsupported Model";
+          errorTitle = "Image Model Not Found";
+          break;
+        case "invalid_provider_request":
+          badgeText = "Invalid Request";
+          errorTitle = "Invalid Provider Parameters";
+          break;
+        case "provider_credits_exhausted":
+          badgeText = "Credits Exhausted";
+          errorTitle = "Provider API Credits Exhausted";
+          break;
+        case "provider_rate_limit":
+          badgeText = "Rate Limited";
+          errorTitle = "Provider Rate Limit Exceeded";
+          break;
+        case "nexora_quota_exceeded":
+          badgeText = "Plan Limit Reached";
+          errorTitle = "Nexora Plan Quota Exceeded";
+          break;
+        case "provider_timeout":
+          badgeText = "Timeout";
+          errorTitle = "Provider Request Timed Out";
+          break;
+        case "invalid_image_response":
+          badgeText = "Invalid Image";
+          errorTitle = "Corrupt or Empty Image Response";
+          break;
+        case "storage_failure":
+          badgeText = "Storage Error";
+          errorTitle = "Failed to Store Image Artifact";
+          break;
+        default:
+          badgeText = artifact.status === "rate_limited" ? "Rate Limited" : artifact.status === "unsupported" ? "Not Configured" : "Generation Failed";
+          errorTitle = artifact.status === "rate_limited" ? "Provider Capacity Limit" : "Image Generation Unavailable";
+          break;
+      }
+
       return (
         <div className="my-3 rounded-2xl overflow-hidden border border-amber-500/30 bg-slate-950/90 shadow-2xl backdrop-blur-xl">
           <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-amber-950/40 via-red-950/20 to-slate-900/60 border-b border-amber-500/20">
@@ -226,11 +275,11 @@ export function CreativeArtifactCard({ artifact, onAction }: CreativeArtifactCar
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-white tracking-wide">{artifact.title}</span>
                   <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                    Generation Unavailable
+                    {badgeText}
                   </span>
                 </div>
                 <span className="text-[11px] text-zinc-400">
-                  {artifact.subtitle || "Provider Capacity Reached"}
+                  {artifact.subtitle || "Image Generation Unavailable"}
                 </span>
               </div>
             </div>
@@ -240,12 +289,20 @@ export function CreativeArtifactCard({ artifact, onAction }: CreativeArtifactCar
             <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-400">
               <RefreshCw className="w-5 h-5" />
             </div>
-            <div className="max-w-md space-y-1">
-              <h4 className="text-sm font-semibold text-zinc-200">Image Generation Temporarily Busy</h4>
+            <div className="max-w-md space-y-1.5">
+              <h4 className="text-sm font-semibold text-zinc-200">
+                {errorTitle}
+              </h4>
               <p className="text-xs text-zinc-400 leading-relaxed">
                 {artifact.errorMessage ||
-                  "The upstream AI image generation provider is currently at capacity or encountered a rate limit. No broken image was rendered."}
+                  "The upstream AI image generation provider is currently unavailable. No placeholder was rendered."}
               </p>
+              {artifact.suggestedNextStep && (
+                <div className="mt-2 text-[11px] font-medium text-amber-300/90 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-1.5 inline-block text-left">
+                  <span className="font-semibold text-amber-200">Action: </span>
+                  {artifact.suggestedNextStep}
+                </div>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
@@ -275,18 +332,6 @@ export function CreativeArtifactCard({ artifact, onAction }: CreativeArtifactCar
                 <span>{copied ? "Prompt Copied" : "Copy Prompt"}</span>
               </button>
             </div>
-
-            <div className="pt-2 text-[11px] text-zinc-400 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400/80 shrink-0" />
-              <span>
-                Tip: Configure <code className="text-purple-300">OPENAI_API_KEY</code> (DALL-E 3) in{" "}
-                <code className="text-purple-300">.env.local</code> for dedicated, instant generation.
-              </span>
-            </div>
-          </div>
-
-          <div className="px-4 py-2 bg-slate-900/40 border-t border-white/5 text-[11px] text-zinc-400 truncate">
-            Prompt: &quot;{imgMeta?.prompt || artifact.title}&quot;
           </div>
         </div>
       );
@@ -301,13 +346,7 @@ export function CreativeArtifactCard({ artifact, onAction }: CreativeArtifactCar
               <ImageIcon className="w-4 h-4" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-white tracking-wide">{artifact.title}</span>
-                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">
-                  {isEdited ? "AI Edited Image" : imgMeta?.style || "Creative"}
-                </span>
-              </div>
-              <span className="text-[11px] text-zinc-400">{artifact.subtitle}</span>
+              <span className="text-xs font-bold text-white tracking-wide">{artifact.title}</span>
             </div>
           </div>
 
@@ -381,22 +420,10 @@ export function CreativeArtifactCard({ artifact, onAction }: CreativeArtifactCar
               <span className="text-xs">Generating visual render...</span>
             </div>
           )}
-
-          {/* Overlay Tag */}
-          <div className="absolute bottom-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 text-[11px] text-zinc-300">
-            {imgMeta?.provider}
-          </div>
         </div>
 
-        {/* Footer info & prompt */}
-        <div className="px-4 py-2.5 bg-slate-900/40 border-t border-white/5 flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-1.5 text-zinc-400 truncate max-w-[70%]">
-            <Sparkles className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-            <span className="truncate italic font-mono text-[11px]">
-              &quot;{imgMeta?.prompt || artifact.title}&quot;
-            </span>
-          </div>
-
+        {/* Footer actions */}
+        <div className="px-4 py-2.5 bg-slate-900/40 border-t border-white/5 flex items-center justify-end gap-2 text-xs">
           <div className="flex items-center gap-2">
             {onAction && (
               <>
@@ -481,16 +508,96 @@ export function CreativeArtifactCard({ artifact, onAction }: CreativeArtifactCar
                 className="max-h-[86vh] max-w-full rounded-2xl object-contain shadow-2xl border border-white/10"
                 onClick={(e) => e.stopPropagation()}
               />
-              <div className="mt-3 px-4 py-1.5 rounded-full bg-black/80 backdrop-blur-md text-xs text-zinc-300 border border-white/10 flex items-center gap-2">
-                <span>{artifact.title}</span>
-                <span className="text-zinc-500">•</span>
-                <span className="text-purple-400 font-mono">{imgMeta?.resolution || "1024x1024"}</span>
-                <span className="text-zinc-500">•</span>
-                <span>{imgMeta?.provider}</span>
-              </div>
             </div>
           </div>
         )}
+      </div>
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // RENDER: VIDEO GENERATION
+  // --------------------------------------------------------------------------
+  if (artifact.type === "video") {
+    const isFailed =
+      artifact.status === "failed" ||
+      artifact.status === "unsupported" ||
+      artifact.status === "rate_limited" ||
+      (!artifact.mediaUrl && artifact.status !== "pending");
+
+    if (isFailed) {
+      const isUnsupported = artifact.status === "unsupported";
+      const isRateLimited = artifact.status === "rate_limited";
+      const badgeText = isUnsupported
+        ? "Provider Unsupported"
+        : isRateLimited
+        ? "Rate Limited"
+        : "Video Unavailable";
+
+      return (
+        <div className="my-3 rounded-2xl overflow-hidden border border-amber-500/30 bg-slate-950/90 shadow-2xl backdrop-blur-xl">
+          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-amber-950/40 via-red-950/20 to-slate-900/60 border-b border-amber-500/20">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                <AlertCircle className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-white tracking-wide">{artifact.title}</span>
+                <span className="ml-2 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  {badgeText}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 flex flex-col items-center justify-center text-center space-y-3.5 bg-gradient-to-b from-amber-500/[0.04] to-transparent">
+            <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-400">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+            <div className="max-w-md space-y-1">
+              <h4 className="text-sm font-semibold text-zinc-200">
+                {isUnsupported ? "Video Generation Provider Not Configured" : "Video Generation Failed"}
+              </h4>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                {artifact.errorMessage ||
+                  "AI Video Generation provider is not configured. Please set REPLICATE_API_TOKEN or LUMA_API_KEY in .env.local to enable video generation."}
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="my-3 rounded-2xl overflow-hidden border border-purple-500/20 bg-slate-950/80 shadow-2xl backdrop-blur-xl transition-all hover:border-purple-500/40">
+        <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-purple-950/40 to-slate-900/60 border-b border-white/5">
+          <span className="text-xs font-bold text-white tracking-wide">{artifact.title}</span>
+          {artifact.mediaUrl && (
+            <button
+              onClick={() => handleDownloadMedia(artifact.mediaUrl!, `nexora-video-${Date.now()}.mp4`)}
+              className="p-1.5 text-purple-400 hover:text-purple-300 rounded-lg hover:bg-purple-500/10 transition-colors"
+              title="Download video"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        <div className="relative bg-zinc-950 flex items-center justify-center overflow-hidden min-h-[260px] max-h-[520px]">
+          {artifact.mediaUrl ? (
+            <video
+              src={artifact.mediaUrl}
+              controls
+              autoPlay
+              loop
+              className="w-full h-auto max-h-[520px] object-contain"
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center p-8 text-zinc-500 gap-2">
+              <Sparkles className="w-8 h-8 animate-pulse text-purple-400" />
+              <span className="text-xs">Generating video clip...</span>
+            </div>
+          )}
+        </div>
       </div>
     );
   }

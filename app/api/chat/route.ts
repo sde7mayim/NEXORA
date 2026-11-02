@@ -16,7 +16,8 @@ import { ImageCreativeService } from "@/lib/ai/creative/image-service";
 import { LyricsCreativeService } from "@/lib/ai/creative/lyrics-service";
 import { MusicCreativeService } from "@/lib/ai/creative/music-service";
 import { AudioCreativeService } from "@/lib/ai/creative/audio-service";
-import { CreativeArtifact } from "@/lib/ai/creative/creative-types";
+import { VideoCreativeService } from "@/lib/ai/creative/video-service";
+import { CreativeArtifact, CreativeArtifactType } from "@/lib/ai/creative/creative-types";
 
 const ChatRequestSchema = z.object({
   modelSelectionId: z.string().min(1),
@@ -58,7 +59,7 @@ const ChatRequestSchema = z.object({
   userId: z.string().default("usr_anonymous"),
   creativeStudioRequest: z
     .object({
-      type: z.enum(["image", "edited-image", "lyrics", "music", "voice", "transcription"]),
+      type: z.enum(["image", "edited-image", "lyrics", "music", "voice", "transcription", "video"]),
       prompt: z.string().optional(),
       options: z.record(z.any()).optional(),
     })
@@ -89,19 +90,61 @@ export async function POST(req: NextRequest) {
       userId,
     } = parsed.data;
 
-    // 0. Model Capability Validation
-    const capabilityCheck = ModelRouter.validateRequestCapabilities(modelSelectionId, {
-      requiresWebSearch: includeWebSearch,
-      requiresDocuments: !!(
-        (files && files.length > 0) ||
-        ConversationDocumentStore.getActiveDocuments(conversationId, userId).length > 0
-      ),
-    });
-    if (!capabilityCheck.valid) {
-      return NextResponse.json({ error: capabilityCheck.reason }, { status: 400 });
+    // 0. Resolve active user prompt and task-intent separation
+    const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
+    const userPrompt = lastUserMessage?.content || "";
+
+    const attachmentsList = (lastUserMessage?.attachments || []).map((a) => ({
+      name: a.name,
+      mimeType: a.mimeType,
+      content: a.content,
+    }));
+    const historyContext = messages.slice(0, -1).map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+    const creativeReq = parsed.data.creativeStudioRequest;
+    let cType: CreativeArtifactType | undefined = creativeReq?.type;
+    let cPrompt = creativeReq?.prompt || userPrompt;
+    let cOptions: Record<string, any> = creativeReq?.options || {};
+
+    if (!cType && lastUserMessage) {
+      const cDetect = CreativeDetector.detect(userPrompt, attachmentsList, historyContext);
+      if (cDetect.isCreativeIntent && cDetect.creativeType) {
+        cType = cDetect.creativeType;
+        cPrompt = cDetect.prompt || userPrompt;
+        cOptions = cDetect.parameters || {};
+      }
     }
 
-    // 1. Quota Pre-Check
+    const isCreativeRequest = Boolean(cType);
+
+    // Dynamically route creative requests to dedicated media engines (e.g. nexora-image, nexora-music)
+    const effectiveModelSelectionId = isCreativeRequest
+      ? cType === "image" || cType === "edited-image"
+        ? "nexora-image"
+        : cType === "music"
+        ? "nexora-music"
+        : cType === "video"
+        ? "nexora-video"
+        : modelSelectionId
+      : modelSelectionId;
+
+    // 1. Model Capability Validation (enforce for non-creative text/document requests)
+    if (!isCreativeRequest) {
+      const capabilityCheck = ModelRouter.validateRequestCapabilities(effectiveModelSelectionId, {
+        requiresWebSearch: includeWebSearch,
+        requiresDocuments: !!(
+          (files && files.length > 0) ||
+          ConversationDocumentStore.getActiveDocuments(conversationId, userId).length > 0
+        ),
+      });
+      if (!capabilityCheck.valid) {
+        return NextResponse.json({ error: capabilityCheck.reason }, { status: 400 });
+      }
+    }
+
+    // 2. Quota Pre-Check
     const quotaCheck = EntitlementEngine.checkMessageQuota(planTier, {
       dailyMessages: 0,
       monthlyMessages: 0,
@@ -110,10 +153,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: quotaCheck.reason }, { status: 429 });
     }
 
-    // 2. Atomic Quota Reservation
+    // 3. Atomic Quota Reservation
     const reservationId = await EntitlementEngine.reserveQuota(userId, "message");
 
-    // 3. Ingest any files passed in the request or in recent message attachments
+    // 4. Ingest any files passed in the request or in recent message attachments
     const incomingFiles: Array<{ name: string; content?: string; size?: number; mimeType?: string }> = [
       ...(files || []),
     ];
@@ -150,37 +193,6 @@ export async function POST(req: NextRequest) {
         });
       }
     }
-
-    // 4. Resolve active user prompt and task-intent separation
-    const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
-    const userPrompt = lastUserMessage?.content || "";
-
-    // 4.0 Early Task-Intent Detection for strict workflow separation
-    // (Music generation requests -> Music workflow; Image -> Image; Doc -> Doc; etc.)
-    const attachmentsList = (lastUserMessage?.attachments || []).map((a) => ({
-      name: a.name,
-      mimeType: a.mimeType,
-      content: a.content,
-    }));
-    const historyContext = messages.slice(0, -1).map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
-    const creativeReq = parsed.data.creativeStudioRequest;
-    let cType = creativeReq?.type;
-    let cPrompt = creativeReq?.prompt || userPrompt;
-    let cOptions: Record<string, any> = creativeReq?.options || {};
-
-    if (!cType && lastUserMessage) {
-      const cDetect = CreativeDetector.detect(userPrompt, attachmentsList, historyContext);
-      if (cDetect.isCreativeIntent && cDetect.creativeType) {
-        cType = cDetect.creativeType;
-        cPrompt = cDetect.prompt || userPrompt;
-        cOptions = cDetect.parameters || {};
-      }
-    }
-
-    const isCreativeRequest = Boolean(cType);
 
     // 4.1 Document context processing (Skipped during creative requests to prevent citation leakage)
     const docResult = isCreativeRequest
@@ -490,6 +502,13 @@ CORE RESPONSE GUIDELINES:
             provider: cOptions.provider,
           });
           retrievedCreativeArtifacts.push(art);
+        } else if (cType === "video") {
+          const art = await VideoCreativeService.generateVideo({
+            prompt: cPrompt || "Scenic cinematic video",
+            durationSeconds: (cOptions.durationSeconds as number) || 5,
+            aspectRatio: (cOptions.aspectRatio as string) || "16:9",
+          });
+          retrievedCreativeArtifacts.push(art);
         } else if (cType === "voice") {
           const art = await AudioCreativeService.generateVoice({
             text: cPrompt || "Welcome to Nexora Creative Studio.",
@@ -507,29 +526,121 @@ CORE RESPONSE GUIDELINES:
           });
           retrievedCreativeArtifacts.push(art);
         }
-
-        if (retrievedCreativeArtifacts.length > 0) {
-            const art = retrievedCreativeArtifacts[0];
-            if (art.status === "failed") {
-              contextualMessages.push({
-                role: "system",
-                content: `NEXORA CREATIVE STUDIO STATUS:\n- Attempted Artifact Type: ${art.type}\n- Status: FAILED (${art.errorMessage || "Provider not configured"})\n\nIMPORTANT CONVERSATIONAL DIRECTIVES:\n- An honest error notice is displayed to the user above your chat response.\n- Inform the user clearly and courteously about the configuration status: "${art.errorMessage || "Creative provider is not configured"}".\n- For image requests: guide them that OPENAI_API_KEY (DALL-E 3) or REPLICATE_API_TOKEN (FLUX) can be configured in .env.local, or to retry with Pollinations AI.\n- For music requests: guide them that SUNO_API_KEY or REPLICATE_API_TOKEN can be configured in .env.local, or the built-in synthesizer can be used.\n- For editing requests: guide them to attach or provide the image they wish to edit.\n- Never pretend media was generated, never fabricate fake URLs, and never describe non-existent playback or images.`,
-              });
-            } else if (art.type === "image" || art.type === "edited-image") {
-              contextualMessages.push({
-                role: "system",
-                content: `NEXORA CREATIVE STUDIO OUTPUT:\n- Generated Artifact Type: ${art.type}\n- Title: "${art.title}"\n- Description/Subtitle: ${art.subtitle || ""}\n\nCRITICAL CONVERSATIONAL DIRECTIVES FOR GENERATED IMAGE:\n- The actual generated image is displayed directly in the visual artifact card above your chat response.\n- Provide ONLY a brief, polite single-sentence caption (for example: "Here is your ${art.title || "image"}."). \n- DO NOT output design concepts, design tips, typography advice, sample prompts for Midjourney/DALL-E, or lengthy explanations. The generated image is the primary response.`,
-              });
-            } else {
-              contextualMessages.push({
-                role: "system",
-                content: `NEXORA CREATIVE STUDIO OUTPUT:\n- Generated Artifact Type: ${art.type}\n- Title: "${art.title}"\n- Description/Subtitle: ${art.subtitle || ""}\n\nIMPORTANT CONVERSATIONAL DIRECTIVES:\n- An interactive visual player/card for this ${art.type} is rendered directly above your chat response.\n- Provide an engaging, insightful, and supportive conversational summary celebrating the creation, detailing its artistic nuances, mood, musical key/genre or visual highlights, and invite the user to iterate, change parameters, or download their result.`,
-              });
-            }
-          }
       } catch (creativeErr) {
         console.warn("[App] Creative generation error:", creativeErr);
       }
+    }
+
+    // 8.7. Strict Creative Output Isolation: Return ONLY the requested creative media output!
+    // Never return design concepts, external prompts, tutorials, or LLM chatter alongside media.
+    if (isCreativeRequest && retrievedCreativeArtifacts.length > 0) {
+      const primaryArt = retrievedCreativeArtifacts[0];
+      const encoder = new TextEncoder();
+      const readable = new ReadableStream({
+        async start(controller) {
+          try {
+            const effectiveCreativeModel =
+              cType === "image" || cType === "edited-image"
+                ? "nexora-image"
+                : cType === "music"
+                ? "nexora-music"
+                : cType === "video"
+                ? "nexora-video"
+                : cType === "lyrics"
+                ? "nexora-lyrics"
+                : cType === "transcription"
+                ? "nexora-transcription-engine"
+                : "nexora-creative-studio";
+
+            // Initial metadata
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  type: "metadata",
+                  correlationId: `creative-${Date.now()}`,
+                  actualModel: effectiveCreativeModel,
+                  fallbackTriggered: false,
+                  memoryCount: retrievedMemoriesList.length,
+                  newlyLearned: extractedMemoriesSummary,
+                  activeDocument: null,
+                })}\n\n`
+              )
+            );
+
+            // Creative artifacts event (Image, Music, Video, Lyrics Card)
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  type: "creativeArtifacts",
+                  creativeArtifacts: retrievedCreativeArtifacts,
+                })}\n\n`
+              )
+            );
+
+            // Output payload based on requested output type:
+            if (cType === "lyrics" && primaryArt.lyricsMetadata?.sections) {
+              // Lyrics / song words: Formatted lyrics text only (no audio player attached)
+              const formattedLyrics = primaryArt.lyricsMetadata.sections
+                .map((s) => `### [${s.label || s.type}]\n` + s.lines.join("\n"))
+                .join("\n\n");
+
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    text: `# ${primaryArt.lyricsMetadata.title || primaryArt.title}\n\n${formattedLyrics}`,
+                    isComplete: true,
+                    modelUsed: "nexora-lyrics",
+                    provider: "nexora-studio",
+                  })}\n\n`
+                )
+              );
+            } else if (cType === "transcription" && primaryArt.transcriptionMetadata?.transcript) {
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    text: primaryArt.transcriptionMetadata.transcript,
+                    isComplete: true,
+                    modelUsed: "nexora-transcription-engine",
+                    provider: "nexora-studio",
+                  })}\n\n`
+                )
+              );
+            } else {
+              // Image / Video / Music / Voice:
+              // Return ONLY the requested creative media output. No text chatter, no Midjourney prompts.
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    text: "",
+                    isComplete: true,
+                    modelUsed: effectiveCreativeModel,
+                    provider: "nexora-studio",
+                  })}\n\n`
+                )
+              );
+            }
+
+            await EntitlementEngine.reconcileReservation(reservationId);
+            controller.close();
+          } catch (streamErr) {
+            await EntitlementEngine.releaseReservation(reservationId);
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ error: (streamErr as Error).message || "Generation stream failed" })}\n\n`
+              )
+            );
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(readable, {
+        headers: {
+          "Content-Type": "text/event-stream; charset=utf-8",
+          "Cache-Control": "no-cache, no-transform",
+          Connection: "keep-alive",
+        },
+      });
     }
 
     // 9. Stream AI response with intelligent model orchestrator

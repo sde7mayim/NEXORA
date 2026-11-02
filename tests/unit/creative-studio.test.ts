@@ -217,11 +217,11 @@ describe("Nexora AI Creative Studio Inside Normal Chat", () => {
       const rateLimitRes = ImageCreativeService.validateProviderResponse(429, "text/plain", "Too Many Requests");
       expect(rateLimitRes.valid).toBe(false);
 
-      // 3. Reject HTML error page from Pollinations
+      // 3. Reject HTML error page from third-party provider
       const htmlRes = ImageCreativeService.validateProviderResponse(
         200,
         "text/html",
-        "<!DOCTYPE html><html><body>Pollinations.ai — At its limit right now. The free service is full. Reload in a few seconds.</body></html>"
+        "<!DOCTYPE html><html><body>Provider capacity limit reached. The service is full. Reload in a few seconds.</body></html>"
       );
       expect(htmlRes.valid).toBe(false);
       expect(htmlRes.reason).toContain("non-image");
@@ -230,7 +230,7 @@ describe("Nexora AI Creative Studio Inside Normal Chat", () => {
       const svgRateLimit = ImageCreativeService.validateProviderResponse(
         200,
         "image/svg+xml",
-        "<svg><text>Pollinations.ai — At its limit right now. The free service is full. Reload in a few seconds.</text></svg>"
+        "<svg><text>At its limit right now. The free service is full. Rate limit reached.</text></svg>"
       );
       expect(svgRateLimit.valid).toBe(false);
       expect(svgRateLimit.reason?.toLowerCase()).toContain("rate limit");
@@ -258,7 +258,8 @@ describe("Nexora AI Creative Studio Inside Normal Chat", () => {
       expect(artifact.type).toBe("image");
       expect(artifact.status).toBe("ready");
       expect(artifact.mediaUrl).toBeDefined();
-      expect(artifact.mediaUrl).toContain("pollinations.ai");
+      expect(artifact.mediaUrl?.startsWith("data:image/") || artifact.mediaUrl?.startsWith("https://")).toBe(true);
+      expect(artifact.mediaUrl).not.toContain("pollinations.ai");
       expect(artifact.imageMetadata?.aspectRatio).toBe("16:9");
       expect(artifact.imageMetadata?.resolution).toBe("1024x576");
       expect(artifact.imageMetadata?.style).toBe("cinematic");
@@ -498,7 +499,7 @@ describe("Nexora AI Creative Studio Inside Normal Chat", () => {
         id: "art_img_test_1",
         type: "image",
         title: "Futuristic Skyline",
-        mediaUrl: "https://image.pollinations.ai/prompt/futuristic-skyline",
+        mediaUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjwvc3ZnPg==",
         status: "ready",
         createdAt: new Date().toISOString(),
       };

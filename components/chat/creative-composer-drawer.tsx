@@ -103,6 +103,7 @@ export function CreativeComposerDrawer({
       music: "A soulful romantic melody with acoustic guitar and piano chords",
       voice: "Welcome to Nexora Creative Studio, where multimodal imagination comes to life.",
       transcription: "Transcribe and summarize this audio recording.",
+      video: "A cinematic slow-motion drone flyover of ocean cliffs at sunrise",
     };
 
     const finalPrompt = prompt.trim() || defaultPrompts[activeTab];

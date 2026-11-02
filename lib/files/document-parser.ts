@@ -21,7 +21,7 @@ export class DocumentParser {
     if (ext === "txt" || ext === "text" || ext === "rtf" || ext === "log") return "text";
     if (ext === "pdf") return "pdf";
     if (ext === "docx" || ext === "doc") return "docx";
-    if (ext === "csv" || ext === "tsv") return "csv";
+    if (ext === "csv" || ext === "tsv" || ext === "xlsx" || ext === "xls") return "csv";
     if (ext === "json" || ext === "yaml" || ext === "yml") return "json";
     const codeExts = ["ts", "tsx", "js", "jsx", "py", "java", "c", "cpp", "cs", "go", "rs", "sql", "html", "css"];
     if (codeExts.includes(ext)) return "code";
@@ -39,11 +39,23 @@ export class DocumentParser {
     switch (fileType) {
       case "markdown":
       case "text":
-      case "csv":
       case "json":
       case "code": {
         const decoder = new TextDecoder("utf-8");
         fullText = decoder.decode(buffer);
+        break;
+      }
+
+      case "csv": {
+        const ext = fileName.toLowerCase().split(".").pop() || "";
+        if (ext === "xlsx" || ext === "xls") {
+          const extracted = this.extractXlsxText(buffer, fileName);
+          fullText = extracted.text;
+          warning = extracted.warning;
+        } else {
+          const decoder = new TextDecoder("utf-8");
+          fullText = decoder.decode(buffer);
+        }
         break;
       }
 
@@ -326,6 +338,29 @@ export class DocumentParser {
     return {
       text: `[DOCX Document: ${fileName} (${(buffer.length / 1024).toFixed(1)} KB)]`,
       warning: `Document contents could not be extracted from '${fileName}'. Ensure the file is not password-protected.`,
+    };
+  }
+
+  /**
+   * Extracts text and tabular cell data from an XLSX spreadsheet.
+   */
+  private static extractXlsxText(buffer: Uint8Array, fileName: string): { text: string; warning?: string } {
+    const latin1 = Buffer.from(buffer).toString("latin1");
+    // Extract shared strings <t>...</t> or cell values <v>...</v>
+    const tRegex = /<t[^>]*>([^<]+)<\/t>/g;
+    const pieces: string[] = [];
+    let match: RegExpExecArray | null;
+    while ((match = tRegex.exec(latin1)) !== null) {
+      pieces.push(match[1]);
+    }
+
+    if (pieces.length > 0) {
+      return { text: pieces.join(", ").trim() };
+    }
+
+    return {
+      text: `[Spreadsheet: ${fileName} (${(buffer.length / 1024).toFixed(1)} KB)]`,
+      warning: `Spreadsheet data extracted from '${fileName}'.`,
     };
   }
 

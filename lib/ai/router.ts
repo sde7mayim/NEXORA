@@ -108,7 +108,10 @@ export class ModelRouter {
     if (
       userPlan === "free" &&
       brandedVersion.familySlug !== "nexora-swift" &&
-      brandedVersion.familySlug !== "nexora-core"
+      brandedVersion.familySlug !== "nexora-core" &&
+      brandedVersion.familySlug !== "nexora-chat" &&
+      brandedVersion.familySlug !== "nexora-image" &&
+      brandedVersion.familySlug !== "nexora-music"
     ) {
       throw new Error(
         `Nexora profile '${brandedVersion.familySlug}' requires a Pro or Enterprise subscription.`
@@ -199,11 +202,16 @@ export class ModelRouter {
   }
 
   /**
-   * Validates if a requested model supports capability-specific inputs (e.g. Vision, Documents, Web Search).
+   * Validates if a requested model supports capability-specific inputs (e.g. Vision, Documents, Web Search, Image Generation).
    */
   static validateRequestCapabilities(
     selectionId: string,
-    requirements: { requiresVision?: boolean; requiresDocuments?: boolean; requiresWebSearch?: boolean }
+    requirements: {
+      requiresVision?: boolean;
+      requiresDocuments?: boolean;
+      requiresWebSearch?: boolean;
+      requiresImageGeneration?: boolean;
+    }
   ): { valid: boolean; reason?: string } {
     let capabilities = ModelRegistry.getExternalModel(selectionId)?.capabilities;
 
@@ -237,6 +245,13 @@ export class ModelRouter {
       return {
         valid: false,
         reason: `Model '${selectionId}' does not support live web search grounding.`,
+      };
+    }
+
+    if (requirements.requiresImageGeneration && !capabilities.supportsImageGeneration) {
+      return {
+        valid: false,
+        reason: `Model '${selectionId}' does not support image generation. Switch to 'Nexora Image' or enable creative routing.`,
       };
     }
 

@@ -1,6 +1,6 @@
-export type ProviderKey = "openai" | "anthropic" | "gemini";
+export type ProviderKey = "openai" | "anthropic" | "gemini" | "replicate" | "suno" | "nexora";
 
-export type Modality = "text" | "image" | "document" | "audio";
+export type Modality = "text" | "image" | "document" | "audio" | "video";
 
 export interface ModelCapabilities {
   supportsStreaming: boolean;
@@ -9,6 +9,15 @@ export interface ModelCapabilities {
   supportsDocumentInput: boolean;
   supportsWebSearch: boolean;
   supportsJsonOutput: boolean;
+  supportsImageGeneration?: boolean;
+  supportsMusicGeneration?: boolean;
+  supportsVideoGeneration?: boolean;
+  supportsAudioTranscription?: boolean;
+  supportsVoiceGeneration?: boolean;
+  supportedInputTypes?: string[];
+  supportedOutputTypes?: string[];
+  maxResolution?: string;
+  maxDurationSeconds?: number;
 }
 
 export interface ExternalModel {
@@ -23,16 +32,29 @@ export interface ExternalModel {
   maxOutputTokens: number;
   inputPricePerMillionUSD?: number;
   outputPricePerMillionUSD?: number;
-  status: "active" | "deprecated" | "disabled" | "draft";
+  status: "active" | "deprecated" | "disabled" | "draft" | "unavailable";
   verifiedAt: string;
+  endpointUrl?: string;
+  planEligibility?: Array<"free" | "pro" | "family" | "enterprise">;
+  providerConfig?: Record<string, any>;
 }
 
 export interface NexoraModelFamily {
   id: string;
-  slug: "nexora-swift" | "nexora-core" | "nexora-reason" | "nexora-vision";
+  slug:
+    | "nexora-chat"
+    | "nexora-swift"
+    | "nexora-core"
+    | "nexora-reason"
+    | "nexora-vision"
+    | "nexora-image"
+    | "nexora-music"
+    | "nexora-video";
   displayName: string;
   description: string;
   status: "active" | "disabled";
+  primaryModality?: Modality;
+  versionLabel?: string;
 }
 
 export interface NexoraModelVersion {
@@ -44,6 +66,7 @@ export interface NexoraModelVersion {
   versionLabel: string;
   status: "draft" | "testing" | "published" | "deprecated" | "retired" | "disabled";
   capabilities: ModelCapabilities;
+  planEligibility?: Array<"free" | "pro" | "family" | "enterprise">;
   publishedAt: string;
 }
 

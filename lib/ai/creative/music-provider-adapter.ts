@@ -377,10 +377,10 @@ export class MusicProviderAdapter {
 
     return {
       audioUrl,
-      provider: "Nexora Studio High-Fidelity Synthesizer",
+      provider: "Nexora Studio High-Fidelity Synthesizer (Instrumental)",
       durationSeconds,
       format: "audio/wav",
-      isInstrumental: params.isInstrumental,
+      isInstrumental: true,
     };
   }
 

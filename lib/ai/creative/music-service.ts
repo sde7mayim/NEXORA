@@ -1,5 +1,6 @@
 import {
   CreativeArtifact,
+  CreativeArtifactStatus,
   CreativeMusicMetadata,
   CreativeLyricsSection,
 } from "./creative-types";
@@ -95,7 +96,7 @@ export class MusicCreativeService {
 
     let mediaUrl = "";
     let providerUsed = "Nexora Studio High-Fidelity Synthesizer";
-    let status: "ready" | "failed" = "ready";
+    let status: CreativeArtifactStatus = "ready";
     let errorMessage: string | undefined = undefined;
 
     try {
@@ -121,9 +122,16 @@ export class MusicCreativeService {
       providerUsed = genResult.provider;
     } catch (err: any) {
       console.error("[MusicCreativeService] Audio generation failed:", err);
-      status = "failed";
-      errorMessage = err?.message || "Music generation failed. Configured provider unavailable.";
+      const errMsg = err?.message || "Music generation failed. Configured provider unavailable.";
+      const isCreditsExhausted = /quota|billing|credits|insufficient/i.test(errMsg);
+      const isRateLimited = /rate limit|too many requests|429/i.test(errMsg);
+      const isMissingConfig = /not configured|missing.*key|api key/i.test(errMsg);
+
+      status = isCreditsExhausted || isRateLimited ? "rate_limited" : isMissingConfig ? "unsupported" : "failed";
+      errorMessage = errMsg;
     }
+
+    const isActuallyInstrumental = providerUsed.includes("Synthesizer") ? true : isInstrumental;
 
     const musicMetadata: CreativeMusicMetadata = {
       title,
@@ -139,13 +147,17 @@ export class MusicCreativeService {
       instruments,
       durationSeconds,
       tempoBpm,
-      isInstrumental,
+      isInstrumental: isActuallyInstrumental,
       format: "audio/wav",
       provider: providerUsed,
       waveformSamples: this.generateWaveformSamples(40),
       lyricsPreservationNote: fullExactLyrics
-        ? "Exact user-approved lyrics preserved line-by-line and bound to this composition."
-        : "Original authentic song lyrics generated and bound line-by-line to this audio track.",
+        ? (providerUsed.includes("Synthesizer")
+            ? "Exact user-approved lyrics preserved line-by-line. Synthesizer generates instrumental track; configure SUNO_API_KEY for vocal synthesis."
+            : "Exact user-approved lyrics preserved line-by-line and bound to this composition.")
+        : (providerUsed.includes("Synthesizer")
+            ? "Original authentic song lyrics generated. Synthesizer generates instrumental track; configure SUNO_API_KEY for vocal synthesis."
+            : "Original authentic song lyrics generated and bound line-by-line to this audio track."),
     };
 
     const artifact: CreativeArtifact = {

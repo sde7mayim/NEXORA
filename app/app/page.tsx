@@ -57,6 +57,7 @@ import { EntityCardData } from "@/lib/ai/entities/entity-types";
 import { CreativeArtifactCard } from "@/components/chat/creative-artifact-card";
 import { CreativeComposerDrawer } from "@/components/chat/creative-composer-drawer";
 import { CreativeArtifact, CreativeArtifactType } from "@/lib/ai/creative/creative-types";
+import { CreativeDetector } from "@/lib/ai/creative/creative-detector";
 import { createClient } from "@/lib/supabase/client";
 import { SavedAccountManager } from "@/lib/auth/saved-accounts";
 import { NexoraLogo } from "@/components/nexora-logo";
@@ -604,12 +605,37 @@ export default function ChatWorkspacePage() {
     ConversationStore.saveMessage(convId, userMessage, currentUserEmail);
     setConversations(ConversationStore.getConversations(currentUserEmail));
 
+    const promptText = textToSend || "";
+    const detectedIntent = CreativeDetector.detect(
+      promptText,
+      processedAttachments.map((a) => ({ name: a.name, mimeType: a.mimeType, content: a.content })),
+      newMessages.slice(0, -1).map((m) => ({ role: m.role, content: m.content }))
+    );
+
+    const isImageReq =
+      pendingCreativeRequest?.type === "image" ||
+      (detectedIntent.isCreativeIntent && detectedIntent.creativeType === "image");
+    const isMusicReq =
+      pendingCreativeRequest?.type === "music" ||
+      (detectedIntent.isCreativeIntent && detectedIntent.creativeType === "music");
+    const isVideoReq =
+      pendingCreativeRequest?.type === "video" ||
+      (detectedIntent.isCreativeIntent && detectedIntent.creativeType === "video");
+
+    const effectiveTargetModel = isImageReq
+      ? "nexora-image"
+      : isMusicReq
+      ? "nexora-music"
+      : isVideoReq
+      ? "nexora-video"
+      : selectedModel;
+
     const assistantMsgId = `msg_ast_${Date.now()}`;
     const initialAssistantMessage: ConversationMessage = {
       id: assistantMsgId,
       role: "assistant",
       content: "",
-      modelUsed: selectedModel,
+      modelUsed: effectiveTargetModel,
       createdAt: new Date().toISOString(),
     };
 
@@ -625,7 +651,7 @@ export default function ChatWorkspacePage() {
         signal: controller.signal,
         body: JSON.stringify({
           conversationId: convId,
-          modelSelectionId: selectedModel,
+          modelSelectionId: effectiveTargetModel,
           messages: newMessages.map((m) => ({
             role: m.role,
             content: m.content,
@@ -643,8 +669,21 @@ export default function ChatWorkspacePage() {
       if (pendingCreativeRequest) setPendingCreativeRequest(null);
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+        let serverError = `HTTP ${response.status} ${response.statusText}`;
+        try {
+          const rawText = await response.text();
+          try {
+            const parsedJson = JSON.parse(rawText);
+            serverError = parsedJson.error || parsedJson.message || serverError;
+          } catch {
+            if (rawText && rawText.length < 300) {
+              serverError = rawText;
+            }
+          }
+        } catch {
+          // retain status text
+        }
+        throw new Error(serverError);
       }
 
       const reader = response.body?.getReader();
@@ -653,7 +692,7 @@ export default function ChatWorkspacePage() {
       if (!reader) throw new Error("No readable stream received.");
 
       let accumulatedText = "";
-      let modelAttribution = selectedModel;
+      let modelAttribution = effectiveTargetModel;
       let citationsList: Array<{ title: string; url: string; snippet: string }> = [];
       let entityCardsList: EntityCardData[] = [];
       let creativeArtifactsList: CreativeArtifact[] = [];
@@ -720,11 +759,20 @@ export default function ChatWorkspacePage() {
     } catch (err: unknown) {
       if ((err as Error).name !== "AbortError") {
         const errorMsg = (err as Error).message || "Connection failed";
+        let displayError = errorMsg;
+        if (errorMsg.includes("Failed to fetch") || errorMsg.includes("NetworkError")) {
+          displayError = `Connection error: Unable to reach Nexora server (${errorMsg}). Please check your connection or verify that the local server is running.`;
+        } else if (/missing.*api.*key|not configured/i.test(errorMsg)) {
+          displayError = `${errorMsg} If provider API keys are not yet configured in this environment, add them to .env.local.`;
+        } else {
+          displayError = `Request error: ${errorMsg}`;
+        }
+
         const errorAssistantMsg: ConversationMessage = {
           id: assistantMsgId,
           role: "assistant",
-          content: `*Request error: ${errorMsg}. If provider API keys are not yet configured in this environment, add them to .env.local.*`,
-          modelUsed: selectedModel,
+          content: `*${displayError}*`,
+          modelUsed: effectiveTargetModel,
           createdAt: new Date().toISOString(),
         };
 
@@ -755,8 +803,6 @@ export default function ChatWorkspacePage() {
 
   const handleRegenerate = async (targetMsgId: string, overrideModel?: string) => {
     if (isStreaming) return;
-    const modelToUse = overrideModel || selectedModel;
-    if (overrideModel) setSelectedModel(overrideModel);
 
     const targetIdx = messages.findIndex((m) => m.id === targetMsgId);
     if (targetIdx < 0) return;
@@ -764,6 +810,32 @@ export default function ChatWorkspacePage() {
     // Keep all messages preceding this assistant message
     const previousMessages = messages.slice(0, targetIdx);
     if (previousMessages.length === 0) return;
+
+    // Inspect user intent on the prompt being regenerated
+    const lastUserMsg = previousMessages[previousMessages.length - 1];
+    const lastUserPrompt = lastUserMsg?.content || "";
+    const lastUserAttachments = (lastUserMsg?.attachments || []).map((a) => ({
+      name: a.name,
+      mimeType: a.mimeType,
+      content: a.content,
+    }));
+    const regenIntent = CreativeDetector.detect(
+      lastUserPrompt,
+      lastUserAttachments,
+      previousMessages.slice(0, -1).map((m) => ({ role: m.role, content: m.content }))
+    );
+
+    const defaultRegenModel =
+      regenIntent.isCreativeIntent && regenIntent.creativeType === "image"
+        ? "nexora-image"
+        : regenIntent.isCreativeIntent && regenIntent.creativeType === "music"
+        ? "nexora-music"
+        : regenIntent.isCreativeIntent && regenIntent.creativeType === "video"
+        ? "nexora-video"
+        : selectedModel;
+
+    const modelToUse = overrideModel || defaultRegenModel;
+    if (overrideModel) setSelectedModel(overrideModel);
 
     setIsStreaming(true);
     setOpenModelMenuMsgId(null);
@@ -804,8 +876,21 @@ export default function ChatWorkspacePage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+        let serverError = `HTTP ${response.status} ${response.statusText}`;
+        try {
+          const rawText = await response.text();
+          try {
+            const parsedJson = JSON.parse(rawText);
+            serverError = parsedJson.error || parsedJson.message || serverError;
+          } catch {
+            if (rawText && rawText.length < 300) {
+              serverError = rawText;
+            }
+          }
+        } catch {
+          // retain status text
+        }
+        throw new Error(serverError);
       }
 
       const reader = response.body?.getReader();
@@ -859,10 +944,18 @@ export default function ChatWorkspacePage() {
     } catch (err: unknown) {
       if ((err as Error).name !== "AbortError") {
         const errorMsg = (err as Error).message || "Connection failed";
+        let displayError = errorMsg;
+        if (errorMsg.includes("Failed to fetch") || errorMsg.includes("NetworkError")) {
+          displayError = `Connection error: Unable to reach Nexora server (${errorMsg}). Please check your connection or verify that the local server is running.`;
+        } else if (/missing.*api.*key|not configured/i.test(errorMsg)) {
+          displayError = `${errorMsg} If provider API keys are not yet configured in this environment, add them to .env.local.`;
+        } else {
+          displayError = `Request error: ${errorMsg}`;
+        }
         const errorAssistantMsg: ConversationMessage = {
           id: assistantMsgId,
           role: "assistant",
-          content: `*Request error: ${errorMsg}.*`,
+          content: `*${displayError}*`,
           modelUsed: modelToUse,
           createdAt: new Date().toISOString(),
         };
@@ -1625,7 +1718,7 @@ export default function ChatWorkspacePage() {
                         )}
                       </div>
 
-                      {msg.role === "assistant" && msg.content && (
+                      {msg.role === "assistant" && msg.content && msg.content.trim().length > 0 && (
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => copyToClipboard(msg.content, msg.id)}
@@ -1658,7 +1751,9 @@ export default function ChatWorkspacePage() {
                     )}
 
                     {/* Content formatted with rich markdown and syntax code blocks */}
-                    <MarkdownRenderer content={msg.content} />
+                    {msg.content && msg.content.trim().length > 0 && (
+                      <MarkdownRenderer content={msg.content} />
+                    )}
 
                     {/* Multimodal AI Creative Studio Artifacts (Image, Edited Image, Lyrics, Music, Voice) */}
                     {msg.creativeArtifacts && msg.creativeArtifacts.length > 0 && (
