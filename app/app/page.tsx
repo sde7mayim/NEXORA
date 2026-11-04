@@ -768,11 +768,28 @@ export default function ChatWorkspacePage() {
           displayError = `Request error: ${errorMsg}`;
         }
 
+        const isFailedImage = isImageReq;
         const errorAssistantMsg: ConversationMessage = {
           id: assistantMsgId,
           role: "assistant",
-          content: `*${displayError}*`,
+          content: isFailedImage ? "" : `*${displayError}*`,
           modelUsed: effectiveTargetModel,
+          creativeArtifacts: isFailedImage
+            ? [
+                {
+                  id: `art_img_err_${Date.now()}`,
+                  type: "image",
+                  title: promptText.slice(0, 40) || "Image Generation",
+                  subtitle: "Engine Unavailable",
+                  status: "failed",
+                  errorCategory: "provider_unavailable",
+                  errorMessage: displayError,
+                  suggestedNextStep:
+                    "Verify your self-hosted inference engine or API settings, then click Retry.",
+                  createdAt: new Date().toISOString(),
+                },
+              ]
+            : undefined,
           createdAt: new Date().toISOString(),
         };
 
@@ -1751,9 +1768,16 @@ export default function ChatWorkspacePage() {
                     )}
 
                     {/* Content formatted with rich markdown and syntax code blocks */}
-                    {msg.content && msg.content.trim().length > 0 && (
-                      <MarkdownRenderer content={msg.content} />
-                    )}
+                    {msg.content &&
+                      msg.content.trim().length > 0 &&
+                      (!msg.creativeArtifacts?.some(
+                        (a) => a.type === "image" || a.type === "edited-image"
+                      ) ||
+                        (!msg.content.startsWith("*Request error:") &&
+                          !msg.content.startsWith("*Connection error:") &&
+                          !msg.content.includes("```svg"))) && (
+                        <MarkdownRenderer content={msg.content} />
+                      )}
 
                     {/* Multimodal AI Creative Studio Artifacts (Image, Edited Image, Lyrics, Music, Voice) */}
                     {msg.creativeArtifacts && msg.creativeArtifacts.length > 0 && (

@@ -46,4 +46,14 @@ describe("Model Registry & Routing Framework", () => {
     const coreRoutes = ModelRouter.resolveRoutes("nexora-core", "free");
     expect(coreRoutes.length).toBeGreaterThan(0);
   });
+
+  it("should resolve routes for nexora-music and nexora-video", () => {
+    const musicRoutes = ModelRouter.resolveRoutes("nexora-music", "enterprise");
+    expect(musicRoutes.length).toBeGreaterThan(0);
+    expect(musicRoutes[0].externalModel.capabilities.supportsMusicGeneration).toBe(true);
+
+    const videoRoutes = ModelRouter.resolveRoutes("nexora-video", "enterprise");
+    expect(videoRoutes.length).toBeGreaterThan(0);
+    expect(videoRoutes[0].externalModel.capabilities.supportsVideoGeneration).toBe(true);
+  });
 });

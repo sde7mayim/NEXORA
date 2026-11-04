@@ -23,14 +23,21 @@ export async function GET(req: NextRequest) {
   });
 
   const enhancedNexoraModels = eligible.nexoraModels.map((f) => {
-    const candidateRoutes = ModelRouter.resolveRoutes(f.slug, plan);
-    const hasConfiguredProvider = candidateRoutes.some((r) =>
-      ProviderStatusService.isConfigured(r.externalModel.providerKey as AIProviderKey)
-    );
-    return {
-      ...f,
-      isAvailable: hasConfiguredProvider,
-    };
+    try {
+      const candidateRoutes = ModelRouter.resolveRoutes(f.slug, plan);
+      const hasConfiguredProvider = candidateRoutes.some((r) =>
+        ProviderStatusService.isConfigured(r.externalModel.providerKey as AIProviderKey)
+      );
+      return {
+        ...f,
+        isAvailable: hasConfiguredProvider,
+      };
+    } catch {
+      return {
+        ...f,
+        isAvailable: false,
+      };
+    }
   });
 
   return NextResponse.json({

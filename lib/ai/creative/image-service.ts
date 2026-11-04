@@ -12,6 +12,7 @@
 import {
   CreativeArtifact,
   CreativeArtifactStatus,
+  CreativeErrorCategory,
   CreativeImageMetadata,
   ImageAspectRatio,
   ImageStylePreset,
@@ -243,59 +244,160 @@ export class ImageCreativeService {
         },
       };
     } catch (err: any) {
-      console.warn("[ImageCreativeService] Generation error:", err?.message || err);
-      const errMsg = err?.message || "AI image generation is temporarily unavailable. Please verify API configuration in .env.local or retry shortly.";
+      const rawErrorMsg = err?.message || String(err);
       
-      let errorCategory: CreativeArtifact["errorCategory"] = "unknown";
+      // Keep detailed provider diagnostics strictly in server logs with secrets redacted
+      const redactedServerLog = rawErrorMsg
+        .replace(/key=[^&\s]+/gi, "key=[REDACTED]")
+        .replace(/Bearer\s+[a-zA-Z0-9_\-\.]+/gi, "Bearer [REDACTED]");
+      console.error("[ImageCreativeService] Provider error during image generation:", redactedServerLog);
+
+      let errorCategory: CreativeErrorCategory = err?.category || "unknown";
       let statusReason = "Generation Failed";
+      let cleanUserMessage = "Image generation is temporarily unavailable. Please retry shortly.";
       let suggestedNextStep = "Please retry shortly or verify configuration.";
       let status: CreativeArtifactStatus = "failed";
 
-      if (/missing.*key|not configured|no api key|gemini_api_key.*not configured|openai_api_key.*not configured/i.test(errMsg)) {
-        errorCategory = "missing_api_key";
-        statusReason = "Missing API Key";
-        suggestedNextStep = "Configure GEMINI_API_KEY or OPENAI_API_KEY in .env.local to enable real image generation.";
+      // 0. Self-Hosted Open-Weight Engine Offline or Misconfigured (Strict Priority over Cloud Billing)
+      if (
+        errorCategory === "self_hosted_engine_offline" ||
+        /self[-_ ]hosted.*(offline|unreachable|not running|timed out)|connection refused|econnrefused/i.test(rawErrorMsg)
+      ) {
+        errorCategory = "self_hosted_engine_offline";
+        statusReason = "Engine Offline";
+        cleanUserMessage = "Nexora Image Engine is currently unreachable. Please ensure your self-hosted inference server is running.";
+        suggestedNextStep = "Start your local or self-hosted image inference engine (e.g. LocalAI, ComfyUI, SD-WebUI) or check NEXORA_IMAGE_ENGINE_URL in .env.local.";
+        status = "failed";
+      } else if (
+        errorCategory === "self_hosted_engine_misconfigured" ||
+        /nexora_image_engine_url.*not configured/i.test(rawErrorMsg)
+      ) {
+        errorCategory = "self_hosted_engine_misconfigured";
+        statusReason = "Setup Required";
+        cleanUserMessage = "Nexora Image Engine is not configured. Configure a self-hosted inference endpoint in .env.local to generate images locally.";
+        suggestedNextStep = "Set NEXORA_IMAGE_ENGINE_URL in .env.local to point to your inference runtime.";
         status = "unsupported";
-      } else if (/unsupported model|model.*does not exist|not found for api version|unsupported for predict/i.test(errMsg)) {
+      }
+      // 0.1 Hugging Face Specific Credentials and States
+      else if (/hf_token.*not configured|hugging face.*access token/i.test(rawErrorMsg)) {
+        errorCategory = "missing_api_key";
+        statusReason = "HF Token Required";
+        cleanUserMessage = "Hugging Face access token is not configured. Add HF_TOKEN to generate images via Hugging Face Serverless Inference.";
+        suggestedNextStep = "Create a free User Access Token at https://huggingface.co/settings/tokens and add HF_TOKEN to .env.local.";
+        status = "unsupported";
+      } else if (/hugging face.*is currently loading|model.*is currently loading|estimated_time/i.test(rawErrorMsg)) {
+        errorCategory = "provider_unavailable";
+        statusReason = "Model Loading";
+        cleanUserMessage = "The Hugging Face image model is currently loading into memory. It will be ready in a few moments.";
+        suggestedNextStep = "Wait 15-30 seconds and click Retry Generation.";
+        status = "failed";
+      } else if (/gated repo|accept.*license terms|403.*hugging face/i.test(rawErrorMsg)) {
+        errorCategory = "invalid_credentials";
+        statusReason = "License Terms Required";
+        cleanUserMessage = "Access to this model requires accepting the model terms on Hugging Face.";
+        suggestedNextStep = "Visit Hugging Face to accept the repository license agreement with your logged-in account.";
+        status = "unsupported";
+      }
+      // 1. Quota / Billing Exhaustion
+      else if (
+        errorCategory === "quota_exhausted" ||
+        errorCategory === "billing_inactive" ||
+        errorCategory === "provider_credits_exhausted" ||
+        /credit_balance_exhausted|credits.*exhausted|quota.*exceeded|billing.*not.*enabled|billing.*inactive|free_tier_requests|limit:\s*0/i.test(rawErrorMsg)
+      ) {
+        errorCategory = "provider_credits_exhausted";
+        statusReason = "Credits Exhausted";
+        cleanUserMessage = "Image generation is temporarily unavailable because the configured providers have no available credits.";
+        suggestedNextStep = "Your provider API credits are exhausted or billing is inactive. Add credits in OpenAI or Google AI Studio, or configure HF_TOKEN in .env.local.";
+        status = "rate_limited";
+      }
+      // 2. Missing API Key / Invalid Credentials
+      else if (
+        errorCategory === "invalid_credentials" ||
+        errorCategory === "missing_api_key" ||
+        /missing.*key|not configured|no api key|gemini_api_key.*not configured|openai_api_key.*not configured|invalid.*api.*key|invalid credentials/i.test(rawErrorMsg)
+      ) {
+        errorCategory = "missing_api_key";
+        statusReason = "API Key Required";
+        cleanUserMessage = "AI image generation is not configured. Please add an API key or HF_TOKEN in your environment settings.";
+        suggestedNextStep = "Configure HF_TOKEN, GEMINI_API_KEY, or OPENAI_API_KEY in .env.local.";
+        status = "unsupported";
+      }
+      // 3. Provider Rate Limit
+      else if (
+        errorCategory === "rate_limited" ||
+        errorCategory === "provider_rate_limit" ||
+        /rate.*limit|too many requests|429|resource_exhausted/i.test(rawErrorMsg)
+      ) {
+        errorCategory = "rate_limited";
+        statusReason = "Rate Limited";
+        cleanUserMessage = "Image generation is temporarily busy due to provider rate limits. Please try again in a moment.";
+        suggestedNextStep = "Wait a few moments before trying again.";
+        status = "rate_limited";
+      }
+      // 4. Unsupported Model
+      else if (
+        errorCategory === "unsupported_model" ||
+        /unsupported model|model.*does not exist|not found for api version|unsupported for predict/i.test(rawErrorMsg)
+      ) {
         errorCategory = "unsupported_model";
         statusReason = "Unsupported Model";
-        suggestedNextStep = "The selected image model is not available for this provider account. Update model settings in .env.local.";
+        cleanUserMessage = "The configured image generation model is not available for this provider account.";
+        suggestedNextStep = "Update GEMINI_IMAGE_MODEL or OPENAI_IMAGE_MODEL in .env.local.";
         status = "unsupported";
-      } else if (/invalid parameter|unsupported parameter|invalid_request|unknown parameter/i.test(errMsg)) {
+      }
+      // 5. Invalid Provider Request
+      else if (
+        errorCategory === "invalid_provider_request" ||
+        /invalid parameter|unsupported parameter|invalid_request|unknown parameter/i.test(rawErrorMsg)
+      ) {
         errorCategory = "invalid_provider_request";
-        statusReason = "Invalid Provider Request";
-        suggestedNextStep = "Review parameters passed to the image generation provider.";
+        statusReason = "Invalid Parameters";
+        cleanUserMessage = "The image generation request was rejected by the provider due to invalid parameters.";
+        suggestedNextStep = "Review parameters or try simplifying the prompt.";
         status = "failed";
-      } else if (/credit_balance_exhausted|credits|billing|insufficient_quota|add credits/i.test(errMsg)) {
-        errorCategory = "provider_credits_exhausted";
-        statusReason = "Provider Credits Exhausted";
-        suggestedNextStep = "Your provider API credits are exhausted or billing is inactive. Add credits in OpenAI or Google AI Studio.";
-        status = "rate_limited";
-      } else if (/rate limit|too many requests|429|resource_exhausted/i.test(errMsg)) {
-        errorCategory = "provider_rate_limit";
-        statusReason = "Provider Rate Limit Exceeded";
-        suggestedNextStep = "Too many requests sent in a short window. Wait a few moments before trying again.";
-        status = "rate_limited";
-      } else if (/nexora.*quota|daily limit|plan limit/i.test(errMsg)) {
-        errorCategory = "nexora_quota_exceeded";
-        statusReason = "Nexora Quota Exceeded";
-        suggestedNextStep = "You have reached your Nexora plan generation limit. Upgrade to Pro for increased capacity.";
-        status = "rate_limited";
-      } else if (/timeout|timed out|abort/i.test(errMsg)) {
+      }
+      // 6. Provider Timeout
+      else if (
+        errorCategory === "provider_timeout" ||
+        /timeout|timed out|abort/i.test(rawErrorMsg)
+      ) {
         errorCategory = "provider_timeout";
-        statusReason = "Provider Timeout";
-        suggestedNextStep = "The provider took longer than 35 seconds to respond. Please try again.";
+        statusReason = "Request Timed Out";
+        cleanUserMessage = "The upstream image generation provider took too long to respond. Please retry.";
+        suggestedNextStep = "Click Retry Generation to request the image again.";
         status = "failed";
-      } else if (/invalid image|malformed|corrupt|small.*empty/i.test(errMsg)) {
-        errorCategory = "invalid_image_response";
-        statusReason = "Invalid Image Response";
-        suggestedNextStep = "The provider returned an invalid image stream. Try refining the prompt.";
+      }
+      // 7. Provider Unavailable (500s or network)
+      else if (
+        errorCategory === "provider_unavailable" ||
+        /service unavailable|unavailable|502|503|504|connection failed/i.test(rawErrorMsg)
+      ) {
+        errorCategory = "provider_unavailable";
+        statusReason = "Provider Unavailable";
+        cleanUserMessage = "The image generation provider is temporarily unavailable. Please retry shortly.";
+        suggestedNextStep = "Please retry in a few moments.";
         status = "failed";
-      } else if (/storage/i.test(errMsg)) {
-        errorCategory = "storage_failure";
-        statusReason = "Storage Failure";
-        suggestedNextStep = "Generated image could not be saved to disk or storage bucket.";
+      }
+      // 8. Invalid Image Response
+      else if (
+        errorCategory === "invalid_image_response" ||
+        errorCategory === "invalid_response" ||
+        /invalid image|malformed|corrupt|small.*empty/i.test(rawErrorMsg)
+      ) {
+        errorCategory = "invalid_response";
+        statusReason = "Invalid Response";
+        cleanUserMessage = "The provider returned an invalid image response. Please try refining the prompt.";
+        suggestedNextStep = "Refine the prompt or click Retry Generation.";
         status = "failed";
+      }
+      // 9. Nexora Quota Exceeded
+      else if (/nexora.*quota|daily limit|plan limit/i.test(rawErrorMsg)) {
+        errorCategory = "nexora_quota_exceeded";
+        statusReason = "Plan Limit Reached";
+        cleanUserMessage = "You have reached your Nexora image generation quota for your current plan.";
+        suggestedNextStep = "Upgrade your plan or wait for quota reset.";
+        status = "rate_limited";
       }
 
       return {
@@ -306,7 +408,7 @@ export class ImageCreativeService {
         mediaUrl: undefined,
         thumbnailUrl: undefined,
         status,
-        errorMessage: errMsg,
+        errorMessage: cleanUserMessage,
         errorCategory,
         suggestedNextStep,
         createdAt: new Date().toISOString(),
@@ -318,6 +420,7 @@ export class ImageCreativeService {
           resolution: `${dimensions.width}x${dimensions.height}`,
           provider: statusReason,
           seed,
+          quality,
         },
       };
     }

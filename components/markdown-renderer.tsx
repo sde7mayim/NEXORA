@@ -23,6 +23,8 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
           const language = match ? match[1] || "text" : "text";
           const code = match ? match[2] : part.slice(3, -3);
 
+          if (!code || !code.trim()) return null;
+
           return <LiveCodePreview key={index} code={code} language={language} />;
         }
 

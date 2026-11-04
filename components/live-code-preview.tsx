@@ -29,18 +29,31 @@ interface LiveCodePreviewProps {
  */
 function isPreviewableLanguage(language: string, code: string): boolean {
   const lang = (language || "").toLowerCase().trim();
-  const frontendLanguages = ["html", "htm", "jsx", "tsx", "javascript", "js", "react", "svg", "css"];
+  const trimmed = (code || "").trim();
+
+  // Empty code is never previewable
+  if (!trimmed) return false;
+
+  // Render SVG preview ONLY when a valid, intentionally requested SVG artifact exists
+  if (lang === "svg" || trimmed.toLowerCase().startsWith("<svg")) {
+    return (
+      trimmed.includes("<svg") &&
+      trimmed.includes("</svg>") &&
+      !trimmed.includes("Generation Failed") &&
+      !trimmed.includes("Request error")
+    );
+  }
+
+  const frontendLanguages = ["html", "htm", "jsx", "tsx", "javascript", "js", "react", "css"];
   if (frontendLanguages.includes(lang)) return true;
 
   // Detect HTML or React component tags inside code
-  const trimmed = code.trim();
   if (
     trimmed.startsWith("<!DOCTYPE") ||
     trimmed.startsWith("<html") ||
     (trimmed.includes("<div") && trimmed.includes("</div>")) ||
     (trimmed.includes("export default function") && trimmed.includes("return (")) ||
-    (trimmed.includes("function App()") && trimmed.includes("return (")) ||
-    trimmed.startsWith("<svg")
+    (trimmed.includes("function App()") && trimmed.includes("return ("))
   ) {
     return true;
   }
@@ -181,8 +194,8 @@ function buildSandboxedDoc(sourceCode: string, language: string): string {
 export function LiveCodePreview({ code, language, allowEdit = true }: LiveCodePreviewProps) {
   const [copied, setCopied] = useState(false);
   const [viewMode, setViewMode] = useState<"code" | "preview" | "split">("preview");
-  const [source, setSource] = useState(code);
-  const [debouncedSource, setDebouncedSource] = useState(code);
+  const [source, setSource] = useState(code || "");
+  const [debouncedSource, setDebouncedSource] = useState(code || "");
   const [refreshKey, setRefreshKey] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
@@ -190,8 +203,8 @@ export function LiveCodePreview({ code, language, allowEdit = true }: LiveCodePr
 
   // Sync if initial code prop updates
   useEffect(() => {
-    setSource(code);
-    setDebouncedSource(code);
+    setSource(code || "");
+    setDebouncedSource(code || "");
   }, [code]);
 
   // Debounced auto-preview re-rendering (450ms debounce)
@@ -268,10 +281,17 @@ export function LiveCodePreview({ code, language, allowEdit = true }: LiveCodePr
     URL.revokeObjectURL(url);
   };
 
+  if (!code || !code.trim()) return null;
+
   const sandboxedDoc = previewable ? buildSandboxedDoc(debouncedSource, language) : "";
 
   // If not previewable (e.g. Python, SQL, Bash), render clean modern code block
   if (!previewable) {
+    // If language is svg but not previewable (i.e. contains errors or not valid SVG markup), do not render an SVG code block
+    if (language.toLowerCase() === "svg" && (!source.includes("<svg") || !source.includes("</svg>"))) {
+      return null;
+    }
+
     return (
       <div className="rounded-2xl overflow-hidden border border-white/10 bg-slate-950 my-4 shadow-xl min-w-0 max-w-full">
         <div className="px-4 py-3 bg-slate-900/90 border-b border-white/5 flex items-center justify-between text-sm text-zinc-300">

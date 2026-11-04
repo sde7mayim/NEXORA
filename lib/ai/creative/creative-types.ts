@@ -26,13 +26,21 @@ export type CreativeArtifactStatus =
 
 export type CreativeErrorCategory =
   | "missing_api_key"
+  | "invalid_credentials"
   | "unsupported_model"
   | "invalid_provider_request"
   | "provider_rate_limit"
+  | "rate_limited"
   | "provider_credits_exhausted"
+  | "quota_exhausted"
+  | "billing_inactive"
   | "nexora_quota_exceeded"
   | "provider_timeout"
+  | "provider_unavailable"
   | "invalid_image_response"
+  | "invalid_response"
+  | "self_hosted_engine_offline"
+  | "self_hosted_engine_misconfigured"
   | "storage_failure"
   | "unknown";
 

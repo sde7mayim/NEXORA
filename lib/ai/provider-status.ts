@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 
-export type AIProviderKey = "openai" | "anthropic" | "gemini" | "replicate" | "suno" | "nexora";
+export type AIProviderKey = "openai" | "anthropic" | "gemini" | "replicate" | "huggingface" | "suno" | "nexora";
 export type ProviderKey = AIProviderKey;
 
 export type ProviderStatus =
@@ -39,6 +39,7 @@ const runtimeState: Record<ProviderKey, ProviderRuntimeState> = {
   anthropic: { status: "configured_unverified", lastCheckedAt: 0, consecutiveFailures: 0 },
   gemini: { status: "configured_unverified", lastCheckedAt: 0, consecutiveFailures: 0 },
   replicate: { status: "configured_unverified", lastCheckedAt: 0, consecutiveFailures: 0 },
+  huggingface: { status: "configured_unverified", lastCheckedAt: 0, consecutiveFailures: 0 },
   suno: { status: "configured_unverified", lastCheckedAt: 0, consecutiveFailures: 0 },
   nexora: { status: "available", lastCheckedAt: 0, consecutiveFailures: 0 },
 };
@@ -65,11 +66,14 @@ export function isPlaceholderKey(val: string): boolean {
     lower.includes("...your-") ||
     lower.includes("your-key") ||
     lower.includes("your_key") ||
+    lower.includes("your-hf-token") ||
     lower.startsWith("sk-placeholder") ||
     lower.startsWith("sk-ant-placeholder") ||
+    lower.startsWith("hf_placeholder") ||
     lower.includes("placeholder") ||
     lower === "sk-..." ||
     lower === "sk-ant-..." ||
+    lower === "hf_..." ||
     lower === "aq..."
   );
 }
@@ -131,6 +135,9 @@ export class ProviderStatusService {
       case "replicate":
         key = readEnvVariable(["REPLICATE_API_TOKEN"]);
         break;
+      case "huggingface":
+        key = readEnvVariable(["HF_TOKEN", "HUGGINGFACE_API_KEY", "HUGGING_FACE_HUB_TOKEN"]);
+        break;
       case "suno":
         key = readEnvVariable(["SUNO_API_KEY"]);
         break;
@@ -153,7 +160,7 @@ export class ProviderStatusService {
    * Returns a list of all providers that have valid API keys on this machine.
    */
   static getConfiguredProviders(): ProviderKey[] {
-    const all: ProviderKey[] = ["gemini", "openai", "anthropic", "replicate", "suno", "nexora"];
+    const all: ProviderKey[] = ["gemini", "openai", "anthropic", "replicate", "huggingface", "suno", "nexora"];
     return all.filter((p) => this.isConfigured(p));
   }
 
@@ -322,6 +329,9 @@ export class ProviderStatusService {
       { key: "gemini", name: "Google Gemini" },
       { key: "openai", name: "OpenAI" },
       { key: "anthropic", name: "Anthropic" },
+      { key: "huggingface", name: "Hugging Face" },
+      { key: "replicate", name: "Replicate" },
+      { key: "nexora", name: "Nexora Studio" },
     ];
 
     const result: Partial<Record<ProviderKey, SafeProviderStatusSummary>> = {};

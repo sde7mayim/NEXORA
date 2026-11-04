@@ -222,9 +222,24 @@ export function CreativeArtifactCard({ artifact, onAction }: CreativeArtifactCar
       let errorTitle = "Image Generation Unavailable";
 
       switch (category) {
+        case "self_hosted_engine_offline":
+          badgeText = "Engine Offline";
+          errorTitle = "Nexora Image Engine Offline";
+          break;
+        case "self_hosted_engine_misconfigured":
+          badgeText = "Setup Required";
+          errorTitle = "Nexora Image Engine Not Configured";
+          break;
+        case "quota_exhausted":
+        case "billing_inactive":
+        case "provider_credits_exhausted":
+          badgeText = "Credits Exhausted";
+          errorTitle = "Provider API Credits Exhausted";
+          break;
         case "missing_api_key":
-          badgeText = "Missing API Key";
-          errorTitle = "Provider Not Configured";
+        case "invalid_credentials":
+          badgeText = "Not Configured";
+          errorTitle = "Provider API Key Required";
           break;
         case "unsupported_model":
           badgeText = "Unsupported Model";
@@ -234,13 +249,14 @@ export function CreativeArtifactCard({ artifact, onAction }: CreativeArtifactCar
           badgeText = "Invalid Request";
           errorTitle = "Invalid Provider Parameters";
           break;
-        case "provider_credits_exhausted":
-          badgeText = "Credits Exhausted";
-          errorTitle = "Provider API Credits Exhausted";
-          break;
         case "provider_rate_limit":
+        case "rate_limited":
           badgeText = "Rate Limited";
           errorTitle = "Provider Rate Limit Exceeded";
+          break;
+        case "provider_unavailable":
+          badgeText = "Unavailable";
+          errorTitle = "Provider Temporarily Unavailable";
           break;
         case "nexora_quota_exceeded":
           badgeText = "Plan Limit Reached";
@@ -251,7 +267,8 @@ export function CreativeArtifactCard({ artifact, onAction }: CreativeArtifactCar
           errorTitle = "Provider Request Timed Out";
           break;
         case "invalid_image_response":
-          badgeText = "Invalid Image";
+        case "invalid_response":
+          badgeText = "Invalid Response";
           errorTitle = "Corrupt or Empty Image Response";
           break;
         case "storage_failure":

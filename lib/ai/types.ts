@@ -1,4 +1,4 @@
-export type ProviderKey = "openai" | "anthropic" | "gemini" | "replicate" | "suno" | "nexora";
+export type ProviderKey = "openai" | "anthropic" | "gemini" | "replicate" | "huggingface" | "suno" | "nexora";
 
 export type Modality = "text" | "image" | "document" | "audio" | "video";
 
