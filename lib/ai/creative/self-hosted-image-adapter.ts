@@ -111,7 +111,7 @@ export class SelfHostedImageAdapter {
             } else if (data?.sd_model_name) {
               discoveredModel = data.sd_model_name;
             }
-          } catch {}
+          } catch { }
 
           return {
             online: true,
