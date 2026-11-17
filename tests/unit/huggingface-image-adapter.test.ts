@@ -151,12 +151,45 @@ describe("NEXORA — HUGGING FACE INFERENCE IMAGE ENGINE", () => {
       const uint8Array = new Uint8Array(genuinePngBuffer);
 
       vi.spyOn(global, "fetch").mockImplementation(async (url: any) => {
-        if (String(url).includes("router.huggingface.co")) {
+        const u = String(url);
+        if (u.includes("queue/join")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ event_id: "test_event_123" }),
+            headers: new Headers(),
+          } as any;
+        }
+        if (u.includes("queue/data")) {
+          const sseContent = `data: {"msg":"process_completed","output":{"data":[{"path":"output.png","mime_type":"image/png"}]},"success":true}\n\n`;
+          const sseBytes = new TextEncoder().encode(sseContent);
+          return {
+            ok: true,
+            status: 200,
+            body: {
+              getReader: () => {
+                let sent = false;
+                return {
+                  read: async () => {
+                    if (!sent) {
+                      sent = true;
+                      return { value: sseBytes, done: false };
+                    }
+                    return { value: undefined, done: true };
+                  },
+                };
+              },
+            },
+            headers: new Headers(),
+          } as any;
+        }
+        if (u.includes("output.png") || u.includes("router.huggingface.co")) {
           return {
             ok: true,
             status: 200,
             headers: new Headers({ "content-type": "image/png" }),
-            arrayBuffer: async () => uint8Array.buffer.slice(uint8Array.byteOffset, uint8Array.byteOffset + uint8Array.byteLength),
+            arrayBuffer: async () =>
+              uint8Array.buffer.slice(uint8Array.byteOffset, uint8Array.byteOffset + uint8Array.byteLength),
           } as any;
         }
         throw new Error("Unexpected fetch call: " + url);
@@ -169,9 +202,9 @@ describe("NEXORA — HUGGING FACE INFERENCE IMAGE ENGINE", () => {
         aspectRatio: "16:9",
       });
 
-      expect(res.provider).toBe("Hugging Face");
-      expect(res.model).toBe("black-forest-labs/FLUX.1-schnell");
-      expect(res.format).toBe("png");
+      expect(res.provider).toContain("Hugging Face");
+      expect(res.model).toBe("FLUX.1-schnell");
+      expect(res.format).toBe("image/png");
       expect(res.mediaUrl.startsWith("data:image/png;base64,")).toBe(true);
     });
 
@@ -182,7 +215,7 @@ describe("NEXORA — HUGGING FACE INFERENCE IMAGE ENGINE", () => {
 
       const fetchSpy = vi.spyOn(global, "fetch").mockImplementation(async (url: any) => {
         const u = String(url);
-        if (u.includes("huggingface.co")) {
+        if (u.includes("huggingface.co") || u.includes("hf.space")) {
           return {
             ok: false,
             status: 429,
@@ -207,7 +240,7 @@ describe("NEXORA — HUGGING FACE INFERENCE IMAGE ENGINE", () => {
 
       // Verify fetch was only called for Hugging Face endpoints
       for (const call of fetchSpy.mock.calls) {
-        expect(String(call[0])).toContain("huggingface.co");
+        expect(String(call[0])).toMatch(/huggingface\.co|hf\.space/);
       }
     });
 

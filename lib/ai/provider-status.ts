@@ -93,23 +93,25 @@ function readEnvVariable(varNames: string[]): string {
     }
   }
 
-  // 2. Fall back to parsing .env.local on disk if available in local development
-  try {
-    const envPath = path.join(process.cwd(), ".env.local");
-    if (fs.existsSync(envPath)) {
-      const content = fs.readFileSync(envPath, "utf8");
-      for (const name of varNames) {
-        const match = content.match(new RegExp(`^${name}=(.*)$`, "m"));
-        if (match && match[1]) {
-          const val = cleanEnvValue(match[1]);
-          if (val && !isPlaceholderKey(val)) {
-            return val;
+  // 2. Fall back to parsing .env.local on disk if available in local development (bypassed in unit tests to allow env mocking)
+  if (!process.env.VITEST) {
+    try {
+      const envPath = path.join(process.cwd(), ".env.local");
+      if (fs.existsSync(envPath)) {
+        const content = fs.readFileSync(envPath, "utf8");
+        for (const name of varNames) {
+          const match = content.match(new RegExp(`^${name}=(.*)$`, "m"));
+          if (match && match[1]) {
+            const val = cleanEnvValue(match[1]);
+            if (val && !isPlaceholderKey(val)) {
+              return val;
+            }
           }
         }
       }
+    } catch {
+      // Environment file read is purely best-effort for local development
     }
-  } catch {
-    // Environment file read is purely best-effort for local development
   }
 
   return "";
@@ -142,7 +144,7 @@ export class ProviderStatusService {
         key = readEnvVariable(["SUNO_API_KEY"]);
         break;
       case "nexora":
-        key = "internal-native";
+        key = readEnvVariable(["NEXORA_IMAGE_ENGINE_URL", "NEXORA_ENGINE_URL"]);
         break;
     }
     return key || undefined;
@@ -310,7 +312,32 @@ export class ProviderStatusService {
    */
   static getStatus(provider: ProviderKey): ProviderRuntimeState & { isConfigured: boolean; state: ProviderStatus } {
     const configured = this.isConfigured(provider);
-    const curr = runtimeState[provider];
+    const curr = runtimeState[provider] || { status: "not_configured", lastCheckedAt: 0, consecutiveFailures: 0 };
+
+    if (curr.status === "available") {
+      return {
+        ...curr,
+        status: "available",
+        state: "available",
+        isConfigured: true,
+      };
+    }
+
+    if (
+      curr.status === "auth_error" ||
+      curr.status === "quota_error" ||
+      curr.status === "rate_limited" ||
+      curr.status === "temporary_failure" ||
+      curr.status === "model_unavailable"
+    ) {
+      return {
+        ...curr,
+        status: curr.status,
+        state: curr.status,
+        isConfigured: configured || true,
+      };
+    }
+
     const effectiveStatus: ProviderStatus = configured ? curr.status : "not_configured";
     return {
       ...curr,

@@ -24,6 +24,7 @@ import {
   Check,
   X,
   FileText,
+  Code2,
 } from "lucide-react";
 import { NEXORA_MODEL_FAMILIES } from "@/lib/ai/model-registry";
 import { createClient } from "@/lib/supabase/client";
@@ -342,6 +343,27 @@ export default function WorkspaceSettingsPage() {
           <span>{statusMessage || "Preferences saved successfully. Notification email dispatched."}</span>
         </div>
       )}
+
+      {/* DEVELOPER PLATFORM & API KEYS ACCESS */}
+      <div className="p-6 rounded-3xl bg-gradient-to-r from-indigo-950/40 via-violet-950/30 to-slate-900 border border-indigo-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-indigo-400 font-semibold text-sm">
+            <Code2 className="w-4 h-4" />
+            <span>Nexora Developer Platform</span>
+          </div>
+          <h3 className="text-lg font-bold text-white">Native API Key Management</h3>
+          <p className="text-xs text-zinc-300 max-w-xl">
+            Generate and manage your own cryptographically hashed Live and Test API keys for lyrics, image, music, video, and LLM chat integrations.
+          </p>
+        </div>
+        <a
+          href="/app/developer"
+          className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-2 transition-all shrink-0 shadow-md shadow-indigo-600/30"
+        >
+          <span>Manage API Keys</span>
+          <ExternalLink className="w-3.5 h-3.5" />
+        </a>
+      </div>
 
       {/* SECTION 1: PERSONAL MEMORY & ACCUMULATED KNOWLEDGE */}
       <div className="rounded-3xl glass-card p-6 md:p-8 border border-white/10 space-y-6 shadow-xl">

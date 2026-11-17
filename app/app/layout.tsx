@@ -151,6 +151,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { name: "Models", href: "/app/models", icon: Layers },
     { name: "Files", href: "/app/files", icon: FolderOpen },
     { name: "Web Research", href: "/app/research", icon: Search },
+    { name: "Developer API", href: "/app/developer", icon: Code2 },
     { name: "Billing & Plans", href: "/app/billing", icon: CreditCard },
     { name: "Settings", href: "/app/settings", icon: Settings },
     ...(isOwner

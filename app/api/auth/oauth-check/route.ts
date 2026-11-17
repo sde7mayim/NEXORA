@@ -5,15 +5,28 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const provider = searchParams.get("provider") || "google";
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const supabaseUrl =
-      process.env.NEXT_PUBLIC_SUPABASE_URL || "https://dayswxpdkzzrjpjncqtt.supabase.co";
+    const rawSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const isPlaceholder =
+      !rawSupabaseUrl ||
+      rawSupabaseUrl.includes("placeholder") ||
+      rawSupabaseUrl.includes("your-project");
+
+    const supabaseUrl = isPlaceholder
+      ? "https://dayswxpdkzzrjpjncqtt.supabase.co"
+      : rawSupabaseUrl;
 
     const authorizeUrl = `${supabaseUrl}/auth/v1/authorize?provider=${provider}&redirect_to=${encodeURIComponent(
       `${appUrl}/app`
     )}`;
 
-    // Probe the Supabase authorization endpoint to verify provider activation
-    const res = await fetch(authorizeUrl, { redirect: "manual" });
+    // Probe the Supabase authorization endpoint to verify provider activation with strict timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+    const res = await fetch(authorizeUrl, {
+      redirect: "manual",
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeoutId));
 
     if (res.status === 400) {
       const errJson = await res.json().catch(() => ({}));

@@ -9,6 +9,8 @@
  * - Never returns fake audio URLs or simulated playback controls when generation fails
  */
 
+import { HuggingFaceMusicAdapter } from "./huggingface-music-adapter";
+
 export interface MusicTrackParams {
   prompt: string;
   genre: string;
@@ -34,6 +36,7 @@ export interface MusicGenerationResult {
 
 export type MusicProviderType =
   | "auto"
+  | "huggingface"
   | "synthesizer"
   | "suno"
   | "udio"
@@ -47,6 +50,8 @@ export class MusicProviderAdapter {
    */
   static isProviderConfigured(provider: MusicProviderType): boolean {
     switch (provider) {
+      case "huggingface":
+        return HuggingFaceMusicAdapter.isConfigured();
       case "suno":
         return Boolean(process.env.SUNO_API_KEY);
       case "udio":
@@ -63,6 +68,7 @@ export class MusicProviderAdapter {
       case "auto":
         // Auto resolves to any configured provider or built-in synthesizer
         return (
+          HuggingFaceMusicAdapter.isConfigured() ||
           Boolean(process.env.SUNO_API_KEY) ||
           Boolean(process.env.REPLICATE_API_TOKEN) ||
           Boolean(process.env.ELEVENLABS_API_KEY) ||
@@ -84,6 +90,10 @@ export class MusicProviderAdapter {
     const envProvider = (process.env.MUSIC_PROVIDER as MusicProviderType) || "auto";
     const target = requested && requested !== "auto" ? requested : envProvider;
 
+    if (target === "huggingface") {
+      const configured = HuggingFaceMusicAdapter.isConfigured();
+      return { provider: "huggingface", isConfigured: configured, missingKeyName: configured ? undefined : "HF_TOKEN" };
+    }
     if (target === "suno") {
       const configured = Boolean(process.env.SUNO_API_KEY);
       return { provider: "suno", isConfigured: configured, missingKeyName: configured ? undefined : "SUNO_API_KEY" };
@@ -101,14 +111,15 @@ export class MusicProviderAdapter {
       return { provider: "elevenlabs", isConfigured: configured, missingKeyName: configured ? undefined : "ELEVENLABS_API_KEY" };
     }
     if (target === "none") {
-      return { provider: "none", isConfigured: false, missingKeyName: "SUNO_API_KEY or REPLICATE_API_TOKEN" };
+      return { provider: "none", isConfigured: false, missingKeyName: "HF_TOKEN, SUNO_API_KEY or REPLICATE_API_TOKEN" };
     }
     if (target === "synthesizer") {
       const configured = process.env.ENABLE_BUILTIN_SYNTHESIZER !== "false";
       return { provider: "synthesizer", isConfigured: configured };
     }
 
-    // Default / "auto" mode
+    // Default / "auto" mode: Prioritize free Hugging Face ZeroGPU when token is present
+    if (HuggingFaceMusicAdapter.isConfigured()) return { provider: "huggingface", isConfigured: true };
     if (process.env.SUNO_API_KEY) return { provider: "suno", isConfigured: true };
     if (process.env.REPLICATE_API_TOKEN) return { provider: "replicate", isConfigured: true };
     if (process.env.ELEVENLABS_API_KEY) return { provider: "elevenlabs", isConfigured: true };
@@ -120,7 +131,7 @@ export class MusicProviderAdapter {
     return {
       provider: "none",
       isConfigured: false,
-      missingKeyName: "SUNO_API_KEY, REPLICATE_API_TOKEN, or ENABLE_BUILTIN_SYNTHESIZER=true",
+      missingKeyName: "HF_TOKEN, SUNO_API_KEY, REPLICATE_API_TOKEN, or ENABLE_BUILTIN_SYNTHESIZER=true",
     };
   }
 
@@ -142,6 +153,18 @@ export class MusicProviderAdapter {
     }
 
     switch (resolution.provider) {
+      case "huggingface":
+        try {
+          return await HuggingFaceMusicAdapter.generate(params);
+        } catch (hfErr: any) {
+          console.warn("[MusicProviderAdapter] HuggingFace ZeroGPU music generation failed:", hfErr?.message || hfErr);
+          // If in auto mode and synthesizer is enabled, failover to synthesizer
+          if ((!requestedProvider || requestedProvider === "auto") && process.env.ENABLE_BUILTIN_SYNTHESIZER !== "false") {
+            console.log("[MusicProviderAdapter] Falling back to built-in high-fidelity synthesizer.");
+            return this.generateWithSynthesizer(params);
+          }
+          throw hfErr;
+        }
       case "suno":
         return this.generateWithSuno(params);
       case "replicate":

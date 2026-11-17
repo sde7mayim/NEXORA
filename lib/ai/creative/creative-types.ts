@@ -158,6 +158,7 @@ export interface CreativeVideoMetadata {
   provider?: string;
   model?: string;
   format?: string;
+  fps?: number;
 }
 
 export interface CreativeArtifact {

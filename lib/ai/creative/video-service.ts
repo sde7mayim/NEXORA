@@ -9,6 +9,7 @@
  */
 
 import { CreativeArtifact, CreativeArtifactStatus, CreativeVideoMetadata } from "./creative-types";
+import { HuggingFaceVideoAdapter } from "./huggingface-video-adapter";
 
 export interface GenerateVideoOptions {
   prompt: string;
@@ -29,12 +30,14 @@ export class VideoCreativeService {
       provider = process.env.VIDEO_PROVIDER || "auto",
     } = options;
 
+    const isHfConfigured = HuggingFaceVideoAdapter.isConfigured();
     const replicateToken = process.env.REPLICATE_API_TOKEN;
     const lumaKey = process.env.LUMA_API_KEY;
     const runwayKey = process.env.RUNWAY_API_KEY;
 
     // Check if any genuine video provider is configured
     const hasConfiguredProvider =
+      isHfConfigured ||
       (replicateToken && !replicateToken.includes("your-replicate-token")) ||
       (lumaKey && !lumaKey.includes("your-luma-key")) ||
       (runwayKey && !runwayKey.includes("your-runway-key"));
@@ -48,7 +51,7 @@ export class VideoCreativeService {
         mediaUrl: undefined,
         status: "unsupported",
         errorMessage:
-          "AI Video Generation provider is not configured. Please configure REPLICATE_API_TOKEN, LUMA_API_KEY, or RUNWAY_API_KEY in .env.local to enable video generation.",
+          "AI Video Generation provider is not configured. Please configure HF_TOKEN, REPLICATE_API_TOKEN, LUMA_API_KEY, or RUNWAY_API_KEY in .env.local to enable video generation.",
         createdAt: new Date().toISOString(),
         videoMetadata: {
           prompt,
@@ -57,6 +60,57 @@ export class VideoCreativeService {
           provider: "None",
         },
       };
+    }
+
+    // Priority 1: Zero-Budget Hugging Face ZeroGPU Text-To-Video (Free, high-speed)
+    if (isHfConfigured && (provider === "auto" || provider === "huggingface" || provider === "zerogpu")) {
+      try {
+        const hfResult = await HuggingFaceVideoAdapter.generate({
+          prompt,
+          durationSeconds,
+          aspectRatio,
+        });
+
+        return {
+          id: `art_vid_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          type: "video",
+          title: this.truncateTitle(prompt),
+          subtitle: `VIDEO • ${aspectRatio} • Hugging Face ZeroGPU (${hfResult.model})`,
+          mediaUrl: hfResult.mediaUrl,
+          status: "ready",
+          createdAt: new Date().toISOString(),
+          videoMetadata: {
+            prompt,
+            durationSeconds: hfResult.durationSeconds,
+            aspectRatio,
+            provider: "Hugging Face ZeroGPU",
+            model: hfResult.model,
+            fps: 16,
+            resolution: "512x512",
+          },
+        };
+      } catch (hfErr: any) {
+        console.warn("[VideoCreativeService] HuggingFace video generation failed:", hfErr?.message || hfErr);
+        // If explicitly requested huggingface, do not fall over to paid providers
+        if (provider === "huggingface" || provider === "zerogpu") {
+          return {
+            id: `art_vid_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+            type: "video",
+            title: this.truncateTitle(prompt),
+            subtitle: `VIDEO • ${aspectRatio} • Hugging Face Failed`,
+            mediaUrl: undefined,
+            status: "failed",
+            errorMessage: hfErr?.message || "Hugging Face ZeroGPU video generation failed.",
+            createdAt: new Date().toISOString(),
+            videoMetadata: {
+              prompt,
+              provider: "Hugging Face ZeroGPU",
+              model: "ModelScope Text-To-Video",
+            },
+          };
+        }
+        // Otherwise fall through to commercial providers if configured
+      }
     }
 
     // If Replicate is configured, invoke video prediction

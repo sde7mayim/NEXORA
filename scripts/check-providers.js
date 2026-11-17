@@ -29,10 +29,31 @@ function loadEnvFile(filePath) {
 }
 
 function maskKey(key) {
-  if (!key) return "NOT CONFIGURED";
+  if (!key || isPlaceholder(key)) return "NOT CONFIGURED";
   const trimmed = key.trim();
   if (trimmed.length <= 8) return "********";
   return `${trimmed.slice(0, 4)}...${trimmed.slice(-4)} (${trimmed.length} chars)`;
+}
+
+function isPlaceholder(val) {
+  if (!val) return true;
+  const lower = val.toLowerCase().trim();
+  return (
+    lower.includes("...your-") ||
+    lower.includes("your-key") ||
+    lower.includes("your_key") ||
+    lower.includes("your-hf-token") ||
+    lower.startsWith("sk-placeholder") ||
+    lower.startsWith("sk-ant-placeholder") ||
+    lower.startsWith("hf_placeholder") ||
+    lower.includes("placeholder") ||
+    lower === "sk-..." ||
+    lower === "sk-ant-..." ||
+    lower.endsWith("your-gemini-key") ||
+    lower.endsWith("your-openai-key") ||
+    lower.endsWith("your-anthropic-key") ||
+    lower.endsWith("your-huggingface-token")
+  );
 }
 
 function runDiagnostics() {
@@ -50,6 +71,7 @@ function runDiagnostics() {
   const geminiKey = getEnv("GEMINI_API_KEY") || getEnv("GOOGLE_API_KEY");
   const openaiKey = getEnv("OPENAI_API_KEY");
   const anthropicKey = getEnv("ANTHROPIC_API_KEY");
+  const hfKey = getEnv("HF_TOKEN") || getEnv("HUGGINGFACE_API_KEY");
   const searchKey = getEnv("WEB_SEARCH_API_KEY");
 
   const providers = [
@@ -59,7 +81,8 @@ function runDiagnostics() {
       key: geminiKey,
       freeTierAvailable: true,
       supportedModels: ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.1-pro-preview"],
-      formatValid: geminiKey ? geminiKey.length > 20 : false,
+      formatValid: geminiKey && !isPlaceholder(geminiKey) ? geminiKey.length > 20 : false,
+      isConfigured: Boolean(geminiKey && !isPlaceholder(geminiKey)),
     },
     {
       name: "OpenAI",
@@ -67,7 +90,8 @@ function runDiagnostics() {
       key: openaiKey,
       freeTierAvailable: false,
       supportedModels: ["gpt-4o", "gpt-4o-mini", "o3-mini"],
-      formatValid: openaiKey ? openaiKey.startsWith("sk-") && openaiKey.length > 20 : false,
+      formatValid: openaiKey && !isPlaceholder(openaiKey) ? openaiKey.startsWith("sk-") && openaiKey.length > 20 : false,
+      isConfigured: Boolean(openaiKey && !isPlaceholder(openaiKey)),
     },
     {
       name: "Anthropic Claude",
@@ -75,32 +99,47 @@ function runDiagnostics() {
       key: anthropicKey,
       freeTierAvailable: false,
       supportedModels: ["claude-3-5-sonnet", "claude-3-5-haiku", "claude-3-opus"],
-      formatValid: anthropicKey ? anthropicKey.startsWith("sk-ant-") && anthropicKey.length > 20 : false,
+      formatValid: anthropicKey && !isPlaceholder(anthropicKey) ? anthropicKey.startsWith("sk-ant-") && anthropicKey.length > 20 : false,
+      isConfigured: Boolean(anthropicKey && !isPlaceholder(anthropicKey)),
     },
   ];
 
-  console.log("\nPROVIDER STATUS SUMMARY:");
+  console.log("\nCHAT MODEL PROVIDERS:");
   console.log("-------------------------------------------------------");
 
   let configuredCount = 0;
   for (const p of providers) {
-    const isConfigured = Boolean(p.key && p.key.trim().length > 0);
-    if (isConfigured) configuredCount++;
+    if (p.isConfigured) configuredCount++;
 
-    const statusBadge = isConfigured
+    const statusBadge = p.isConfigured
       ? p.formatValid
         ? "[READY]       "
         : "[WARN FORMAT] "
       : "[NOT SET]     ";
 
     console.log(`${statusBadge} ${p.name.padEnd(18)} Key: ${maskKey(p.key)}`);
-    if (isConfigured) {
+    if (p.isConfigured) {
       console.log(`               Models: ${p.supportedModels.join(", ")}`);
     }
   }
 
+  const hfConfigured = Boolean(hfKey && !isPlaceholder(hfKey));
+  const hfFormatValid = hfConfigured ? (hfKey.startsWith("hf_") && hfKey.length >= 20) : false;
+  const hfBadge = hfConfigured
+    ? hfFormatValid
+      ? "[READY]       "
+      : "[WARN FORMAT] "
+    : "[NOT SET]     ";
+
   console.log("-------------------------------------------------------");
-  console.log(`Web Research:   ${searchKey ? `[CONFIGURED] ${maskKey(searchKey)}` : "[OPTIONAL - NOT SET]"}`);
+  console.log("IMAGE GENERATION PROVIDER:");
+  console.log(`${hfBadge} Hugging Face (FLUX) Key: ${maskKey(hfKey)}`);
+  if (hfConfigured) {
+    console.log("               Model: black-forest-labs/FLUX.1-schnell");
+  }
+
+  console.log("-------------------------------------------------------");
+  console.log(`Web Research:   ${searchKey && !isPlaceholder(searchKey) ? `[CONFIGURED] ${maskKey(searchKey)}` : "[OPTIONAL - NOT SET]"}`);
   console.log("-------------------------------------------------------\n");
 
   console.log("ROUTING ASSESSMENT:");
@@ -114,7 +153,7 @@ function runDiagnostics() {
     console.log("   3. Restart your dev server (`npm run dev`)");
   } else {
     console.log(`✅ ${configuredCount} AI provider(s) ready to serve requests.`);
-    const activeNames = providers.filter((p) => p.key).map((p) => p.name);
+    const activeNames = providers.filter((p) => p.isConfigured).map((p) => p.name);
     console.log(`   Active providers: ${activeNames.join(", ")}`);
     console.log("   Failover order is automatically configuration-aware.");
     if (!openaiKey && !anthropicKey && geminiKey) {

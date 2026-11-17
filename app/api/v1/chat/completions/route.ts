@@ -1,32 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ApiKeyService } from "@/lib/developer/api-keys";
+import { authenticateApiRequest, recordRequestUsage } from "@/lib/api-keys/auth-middleware";
 import { ModelRouter } from "@/lib/ai/router";
 import { TelemetryLogger } from "@/lib/telemetry/logger";
 
 export async function POST(req: NextRequest) {
-  const correlationId = TelemetryLogger.generateCorrelationId();
-  const startTime = Date.now();
+  // 1. Authenticate API Key with chat:write scope
+  const auth = await authenticateApiRequest(req, { requiredScope: "chat:write" });
+  if (!auth.success) {
+    return auth.response;
+  }
+
+  const { context } = auth;
+  const endpoint = "/api/v1/chat/completions";
+  const correlationId = context.correlationId;
+  const startTime = context.startTime;
 
   try {
-    const authHeader = req.headers.get("authorization") || "";
-    const apiKey = authHeader.replace(/^Bearer\s+/i, "").trim();
-
-    // 1. Authenticate API Key with chat:write scope
-    const auth = ApiKeyService.authenticateKey(apiKey, "chat:write");
-    if (!auth.valid) {
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      recordRequestUsage(context, endpoint, 400, 0);
       return NextResponse.json(
-        { error: { message: auth.error, type: "authentication_error", code: "unauthorized" } },
-        { status: 401 }
+        { error: { message: "Invalid JSON request body.", type: "invalid_request_error" } },
+        { status: 400, headers: auth.headers }
       );
     }
 
-    const body = await req.json();
-    const { model = "nexora-core", messages, temperature, max_tokens, stream = false } = body;
+    const { model = "nexora-core", messages, temperature, max_tokens } = body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      recordRequestUsage(context, endpoint, 400, 0);
       return NextResponse.json(
         { error: { message: "messages array is required.", type: "invalid_request_error" } },
-        { status: 400 }
+        { status: 400, headers: auth.headers }
       );
     }
 
@@ -34,23 +41,26 @@ export async function POST(req: NextRequest) {
     const result = await ModelRouter.generateWithFallback({
       modelSelectionId: model,
       messages,
-      userId: auth.record!.userId,
+      userId: context.userId,
       userPlanId: "enterprise",
       temperature,
       maxTokens: max_tokens,
     });
 
     const duration = Date.now() - startTime;
-    const totalTokens = result.promptTokens + result.completionTokens;
+    const totalTokens = (result.promptTokens || 0) + (result.completionTokens || 0);
 
     // 3. Record API Key Usage
-    ApiKeyService.recordUsage(auth.record!.id, "/api/v1/chat/completions", 200, totalTokens);
+    recordRequestUsage(context, endpoint, 200, totalTokens, {
+      provider: result.providerKey,
+      model: result.modelUsed,
+    });
 
     // 4. Record Structured Telemetry
     const estimatedCost = (result.promptTokens * 0.15 + result.completionTokens * 0.6) / 1000000;
     TelemetryLogger.recordEvent({
       correlationId,
-      actorHash: TelemetryLogger.hashActor(auth.record!.userId),
+      actorHash: TelemetryLogger.hashActor(context.userId),
       modelSelected: model,
       providerKey: result.providerKey,
       actualModelId: result.modelUsed,
@@ -95,13 +105,14 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(responsePayload, {
       headers: {
+        ...auth.headers,
         "x-correlation-id": correlationId,
         "x-nexora-provider": result.providerKey,
         "x-nexora-model": result.modelUsed,
       },
     });
   } catch (err) {
-    const duration = Date.now() - startTime;
+    recordRequestUsage(context, endpoint, 500, 0);
     return NextResponse.json(
       {
         error: {
@@ -110,7 +121,7 @@ export async function POST(req: NextRequest) {
           correlation_id: correlationId,
         },
       },
-      { status: 500, headers: { "x-correlation-id": correlationId } }
+      { status: 500, headers: { ...auth.headers, "x-correlation-id": correlationId } }
     );
   }
 }

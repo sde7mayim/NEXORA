@@ -19,7 +19,7 @@ export interface GenerateMusicOptions {
   isInstrumental?: boolean;
   tempoBpm?: number;
   durationSeconds?: number;
-  provider?: "auto" | "synthesizer" | "suno" | "udio" | "replicate" | "elevenlabs" | "none";
+  provider?: "auto" | "huggingface" | "synthesizer" | "suno" | "udio" | "replicate" | "elevenlabs" | "none";
 }
 
 export class MusicCreativeService {
@@ -153,11 +153,11 @@ export class MusicCreativeService {
       waveformSamples: this.generateWaveformSamples(40),
       lyricsPreservationNote: fullExactLyrics
         ? (providerUsed.includes("Synthesizer")
-            ? "Exact user-approved lyrics preserved line-by-line. Synthesizer generates instrumental track; configure SUNO_API_KEY for vocal synthesis."
-            : "Exact user-approved lyrics preserved line-by-line and bound to this composition.")
+          ? "Exact user-approved lyrics preserved line-by-line. Synthesizer generates instrumental track; configure SUNO_API_KEY for vocal synthesis."
+          : "Exact user-approved lyrics preserved line-by-line and bound to this composition.")
         : (providerUsed.includes("Synthesizer")
-            ? "Original authentic song lyrics generated. Synthesizer generates instrumental track; configure SUNO_API_KEY for vocal synthesis."
-            : "Original authentic song lyrics generated and bound line-by-line to this audio track."),
+          ? "Original authentic song lyrics generated. Synthesizer generates instrumental track; configure SUNO_API_KEY for vocal synthesis."
+          : "Original authentic song lyrics generated and bound line-by-line to this audio track."),
     };
 
     const artifact: CreativeArtifact = {

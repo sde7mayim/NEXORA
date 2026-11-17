@@ -3,6 +3,8 @@ import {
   CreativeLyricsMetadata,
   CreativeLyricsSection,
 } from "./creative-types";
+import { ProviderStatusService } from "@/lib/ai/provider-status";
+import { ModelRouter } from "@/lib/ai/router";
 
 export interface GenerateLyricsOptions {
   theme: string;
@@ -11,13 +13,139 @@ export interface GenerateLyricsOptions {
   mood?: string;
   vocalStyle?: "Male" | "Female" | "Duet";
   songLength?: "short" | "standard" | "extended";
+  useLiveLLM?: boolean;
 }
 
 export class LyricsCreativeService {
   /**
+   * Generates lyrics using a genuinely configured upstream LLM provider (Gemini / OpenAI / Anthropic).
+   * Throws NOT_CONFIGURED error if no text provider API key is present.
+   */
+  static async generateLyricsWithLLM(options: GenerateLyricsOptions): Promise<CreativeArtifact> {
+    const configured = ProviderStatusService.getConfiguredProviders();
+    if (configured.length === 0) {
+      throw new Error(
+        "Lyrics generation engine is not configured. Configure GEMINI_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY in .env.local to enable live lyrics generation."
+      );
+    }
+
+    const {
+      theme,
+      language = "English",
+      genre = "Pop / Modern Melody",
+      mood = "Inspiring",
+      vocalStyle = "Duet",
+      songLength = "standard",
+    } = options;
+
+    const systemPrompt = `You are a professional songwriter. Write original lyrics for a song based on the user's prompt.
+Format the lyrics with clear section headers like [Verse 1], [Chorus], [Verse 2], [Bridge], [Outro].
+Output must contain only the song lyrics with section headers.`;
+
+    const userPrompt = `Theme: ${theme}\nLanguage: ${language}\nGenre: ${genre}\nMood: ${mood}\nVocal Style: ${vocalStyle}\nLength: ${songLength}`;
+
+    const response = await ModelRouter.generateWithFallback({
+      modelSelectionId: "nexora-core",
+      userPlanId: "pro",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.7,
+      maxTokens: 1500,
+    });
+
+    const rawText = response.content || "";
+    if (!rawText.trim()) {
+      throw new Error("Upstream AI model provider returned empty lyrics output.");
+    }
+
+    const sections = this.parseSectionsFromText(rawText);
+    const title = this.extractTitleFromText(rawText, theme);
+
+    const lyricsMetadata: CreativeLyricsMetadata = {
+      title,
+      language,
+      genre,
+      mood,
+      theme,
+      vocalStyle,
+      tempoBpm: 84,
+      keySignature: "C Major",
+      sections,
+      copyrightOriginalNotice:
+        "100% Original Nexora Song Lyrics generated via AI inference. All rights cleared for creative recording and performance.",
+    };
+
+    return {
+      id: `art_lyr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      type: "lyrics",
+      title,
+      subtitle: `${language} • ${genre} • ${mood} (${vocalStyle})`,
+      status: "ready",
+      createdAt: new Date().toISOString(),
+      lyricsMetadata,
+    };
+  }
+
+  static parseSectionsFromText(text: string): CreativeLyricsSection[] {
+    const lines = text.split("\n");
+    const sections: CreativeLyricsSection[] = [];
+    let currentLabel = "Verse 1";
+    let currentType: CreativeLyricsSection["type"] = "verse";
+    let currentLines: string[] = [];
+
+    const sectionRegex = /^\[?(Intro|Verse\s*\d*|Pre-Chorus|Chorus|Bridge|Hook|Outro)\]?:?$/i;
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+
+      const match = line.match(sectionRegex);
+      if (match) {
+        if (currentLines.length > 0) {
+          sections.push({ type: currentType, label: currentLabel, lines: [...currentLines] });
+          currentLines = [];
+        }
+        currentLabel = match[1];
+        const lower = currentLabel.toLowerCase();
+        if (lower.includes("intro")) currentType = "intro";
+        else if (lower.includes("pre-chorus")) currentType = "pre-chorus";
+        else if (lower.includes("chorus") || lower.includes("hook")) currentType = "chorus";
+        else if (lower.includes("bridge")) currentType = "bridge";
+        else if (lower.includes("outro")) currentType = "outro";
+        else currentType = "verse";
+      } else {
+        currentLines.push(line);
+      }
+    }
+
+    if (currentLines.length > 0) {
+      sections.push({ type: currentType, label: currentLabel, lines: currentLines });
+    }
+
+    if (sections.length === 0) {
+      sections.push({ type: "verse", label: "Verse 1", lines: lines.map((l) => l.trim()).filter(Boolean) });
+    }
+
+    return sections;
+  }
+
+  static extractTitleFromText(text: string, fallback: string): string {
+    const firstLine = text.split("\n")[0]?.trim();
+    if (firstLine && firstLine.length < 50 && !firstLine.startsWith("[")) {
+      return firstLine.replace(/^Title:\s*/i, "").replace(/^"|"$/g, "");
+    }
+    return fallback.length > 40 ? `${fallback.slice(0, 37)}...` : fallback;
+  }
+
+  /**
    * Generates completely original, non-infringing song lyrics with musical structure.
    */
   static async generateLyrics(options: GenerateLyricsOptions): Promise<CreativeArtifact> {
+    if (options.useLiveLLM) {
+      return this.generateLyricsWithLLM(options);
+    }
     const {
       theme,
       language = "English",
