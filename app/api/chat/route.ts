@@ -424,6 +424,7 @@ CORE RESPONSE GUIDELINES:
                 seed: cOptions.seed,
                 provider: cOptions.provider,
                 quality: cOptions.quality || "standard",
+                userId,
               });
           retrievedCreativeArtifacts.push(art);
         } else if (cType === "edited-image") {
@@ -473,6 +474,7 @@ CORE RESPONSE GUIDELINES:
               operation: cOptions.operation || cOptions.editOperation || "remove-bg",
               targetBackground: cOptions.targetBackground,
               aspectRatio: cOptions.aspectRatio || "1:1",
+              userId,
             });
             retrievedCreativeArtifacts.push(art);
           }
@@ -500,6 +502,7 @@ CORE RESPONSE GUIDELINES:
             tempoBpm: cOptions.tempoBpm || 88,
             durationSeconds: cOptions.durationSeconds || 28,
             provider: cOptions.provider,
+            userId,
           });
           retrievedCreativeArtifacts.push(art);
         } else if (cType === "video") {
@@ -507,6 +510,7 @@ CORE RESPONSE GUIDELINES:
             prompt: cPrompt || "Scenic cinematic video",
             durationSeconds: (cOptions.durationSeconds as number) || 5,
             aspectRatio: (cOptions.aspectRatio as string) || "16:9",
+            userId,
           });
           retrievedCreativeArtifacts.push(art);
         } else if (cType === "voice") {

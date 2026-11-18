@@ -167,6 +167,7 @@ export interface CreativeArtifact {
   title: string;
   subtitle?: string;
   mediaUrl?: string; // Image URL, data URL, audio URL, video URL
+  persistentUrl?: string; // Persistent local storage URL (/api/media/[id])
   thumbnailUrl?: string;
   status: CreativeArtifactStatus;
   errorMessage?: string;

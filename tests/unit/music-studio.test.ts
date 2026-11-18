@@ -7,6 +7,7 @@ describe("NEXORA MUSIC STUDIO — COMPLETE LYRICS-TO-SONG WORKFLOW", () => {
   const mockStorage = new Map<string, string>();
 
   beforeEach(() => {
+    process.env.MUSIC_PROVIDER = "synthesizer";
     mockStorage.clear();
     global.localStorage = {
       getItem: (key: string) => mockStorage.get(key) || null,
@@ -16,6 +17,10 @@ describe("NEXORA MUSIC STUDIO — COMPLETE LYRICS-TO-SONG WORKFLOW", () => {
       length: 0,
       key: () => null,
     };
+  });
+
+  afterEach(() => {
+    delete process.env.MUSIC_PROVIDER;
   });
 
   // ==========================================================================

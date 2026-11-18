@@ -63,7 +63,8 @@ export class HuggingFaceVideoAdapter {
     }
 
     const cleanPrompt = params.prompt.trim();
-    const seed = params.seed ?? Math.floor(Math.random() * 2147483647);
+    // ModelScope Gradio interface enforces max seed 1000000
+    const seed = Math.min(999999, Math.max(0, params.seed ?? Math.floor(Math.random() * 999999)));
     const durationSeconds = params.durationSeconds || 5;
 
     // Map duration to frames (ModelScope: 16 to 32 frames recommended for fast zero-budget generation)

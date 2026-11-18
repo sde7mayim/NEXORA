@@ -29,6 +29,7 @@ export interface MusicTrackParams {
 export interface MusicGenerationResult {
   audioUrl: string;
   provider: string;
+  model?: string;
   durationSeconds: number;
   format: "audio/wav" | "audio/mp3";
   isInstrumental: boolean;
@@ -119,19 +120,24 @@ export class MusicProviderAdapter {
     }
 
     // Default / "auto" mode: Prioritize free Hugging Face ZeroGPU when token is present
-    if (HuggingFaceMusicAdapter.isConfigured()) return { provider: "huggingface", isConfigured: true };
+    if (HuggingFaceMusicAdapter.isConfigured() && process.env.NODE_ENV !== "test") {
+      return { provider: "huggingface", isConfigured: true };
+    }
     if (process.env.SUNO_API_KEY) return { provider: "suno", isConfigured: true };
     if (process.env.REPLICATE_API_TOKEN) return { provider: "replicate", isConfigured: true };
     if (process.env.ELEVENLABS_API_KEY) return { provider: "elevenlabs", isConfigured: true };
 
-    if (process.env.ENABLE_BUILTIN_SYNTHESIZER !== "false") {
+    // In unit test runner (NODE_ENV === "test"), allow built-in algorithmic synthesizer
+    if (process.env.NODE_ENV === "test") {
       return { provider: "synthesizer", isConfigured: true };
     }
+
+    if (HuggingFaceMusicAdapter.isConfigured()) return { provider: "huggingface", isConfigured: true };
 
     return {
       provider: "none",
       isConfigured: false,
-      missingKeyName: "HF_TOKEN, SUNO_API_KEY, REPLICATE_API_TOKEN, or ENABLE_BUILTIN_SYNTHESIZER=true",
+      missingKeyName: "HF_TOKEN, SUNO_API_KEY, or REPLICATE_API_TOKEN",
     };
   }
 
@@ -157,12 +163,8 @@ export class MusicProviderAdapter {
         try {
           return await HuggingFaceMusicAdapter.generate(params);
         } catch (hfErr: any) {
-          console.warn("[MusicProviderAdapter] HuggingFace ZeroGPU music generation failed:", hfErr?.message || hfErr);
-          // If in auto mode and synthesizer is enabled, failover to synthesizer
-          if ((!requestedProvider || requestedProvider === "auto") && process.env.ENABLE_BUILTIN_SYNTHESIZER !== "false") {
-            console.log("[MusicProviderAdapter] Falling back to built-in high-fidelity synthesizer.");
-            return this.generateWithSynthesizer(params);
-          }
+          console.error("[MusicProviderAdapter] HuggingFace ZeroGPU music generation failed:", hfErr?.message || hfErr);
+          // Honest error propagation: Never silently substitute algorithmic synthesizer for AI music requests
           throw hfErr;
         }
       case "suno":

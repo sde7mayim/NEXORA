@@ -383,6 +383,7 @@ describe("Nexora AI Creative Studio Inside Normal Chat", () => {
         mood: "Romantic",
         durationSeconds: 3, // Fast 3-second test buffer
         tempoBpm: 88,
+        provider: "synthesizer",
       });
 
       expect(artifact.type).toBe("music");
@@ -411,6 +412,7 @@ describe("Nexora AI Creative Studio Inside Normal Chat", () => {
         mood: "Peaceful",
         durationSeconds: 2,
         tempoBpm: 78,
+        provider: "synthesizer",
       });
 
       expect(artifact.mediaUrl?.startsWith("data:audio/wav")).toBe(true);

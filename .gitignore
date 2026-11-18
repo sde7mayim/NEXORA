@@ -39,3 +39,7 @@ next-env.d.ts
 .claude/
 .cursor/
 .devin/
+
+# Local Media Storage
+/data/media/
+

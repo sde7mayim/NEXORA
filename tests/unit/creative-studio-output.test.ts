@@ -62,6 +62,7 @@ describe("Creative Studio — Output Isolation & Intent Classification", () => {
       prompt: detection.prompt || "Song about friendship",
       genre: "Acoustic Pop",
       mood: "Friendship",
+      provider: "synthesizer",
     });
 
     expect(artifact.type).toBe("music");

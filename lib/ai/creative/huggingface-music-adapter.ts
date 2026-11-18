@@ -102,6 +102,7 @@ export class HuggingFaceMusicAdapter {
       return {
         audioUrl: downloaded.dataUri,
         provider: "Hugging Face ZeroGPU (MusicGen)",
+        model: "Meta MusicGen",
         durationSeconds,
         format: downloaded.mimeType === "audio/aac" ? "audio/mp3" : "audio/wav",
         isInstrumental: true,

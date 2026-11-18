@@ -4,11 +4,12 @@ import { ImageCreativeService } from "@/lib/ai/creative/image-service";
 import { LyricsCreativeService } from "@/lib/ai/creative/lyrics-service";
 import { MusicCreativeService } from "@/lib/ai/creative/music-service";
 import { AudioCreativeService } from "@/lib/ai/creative/audio-service";
+import { VideoCreativeService } from "@/lib/ai/creative/video-service";
 import { EntitlementEngine } from "@/lib/entitlements/engine";
 import { PlanTier } from "@/lib/entitlements/types";
 
 const CreativeRequestSchema = z.object({
-  type: z.enum(["image", "edited-image", "lyrics", "music", "voice", "transcription"]),
+  type: z.enum(["image", "edited-image", "lyrics", "music", "voice", "transcription", "video"]),
   prompt: z.string().optional(),
   planTier: z.enum(["free", "pro", "family", "enterprise"]).default("free"),
   userId: z.string().default("usr_anonymous"),
@@ -26,11 +27,12 @@ export async function POST(req: NextRequest) {
     const { type, prompt = "", planTier, userId, options = {} } = parsed.data;
 
     // 1. Quota Check based on Creative Type
-    let quotaType: "image" | "image-edit" | "lyrics" | "music" | "audio" = "image";
+    let quotaType: "image" | "image-edit" | "lyrics" | "music" | "audio" | "video" = "image";
     if (type === "edited-image") quotaType = "image-edit";
     else if (type === "lyrics") quotaType = "lyrics";
     else if (type === "music") quotaType = "music";
     else if (type === "voice" || type === "transcription") quotaType = "audio";
+    else if (type === "video") quotaType = "video";
 
     const quotaCheck = EntitlementEngine.checkCreativeQuota(planTier as PlanTier, quotaType, 0);
     if (!quotaCheck.allowed) {
@@ -101,6 +103,16 @@ export async function POST(req: NextRequest) {
           artifact = await AudioCreativeService.transcribeAudio({
             audioBase64: options.audioBase64,
             fileName: options.fileName || "audio-recording.wav",
+          });
+          break;
+
+        case "video":
+          artifact = await VideoCreativeService.generateVideo({
+            prompt: prompt || options.prompt || "Scenic cinematic video",
+            durationSeconds: options.durationSeconds || 5,
+            aspectRatio: options.aspectRatio || "16:9",
+            provider: options.provider,
+            userId,
           });
           break;
       }

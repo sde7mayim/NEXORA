@@ -10,12 +10,15 @@
 
 import { CreativeArtifact, CreativeArtifactStatus, CreativeVideoMetadata } from "./creative-types";
 import { HuggingFaceVideoAdapter } from "./huggingface-video-adapter";
+import { MediaStorageService } from "./media-storage";
 
 export interface GenerateVideoOptions {
   prompt: string;
   durationSeconds?: number;
   aspectRatio?: string;
   provider?: string;
+  userId?: string;
+  seed?: number;
 }
 
 export class VideoCreativeService {
@@ -71,12 +74,27 @@ export class VideoCreativeService {
           aspectRatio,
         });
 
+        const artifactId = `art_vid_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        let persistentMediaUrl = hfResult.mediaUrl;
+        try {
+          persistentMediaUrl =
+            (await MediaStorageService.persistArtifactMedia({
+              id: artifactId,
+              userId: options.userId || "usr_alex",
+              mediaUrl: hfResult.mediaUrl,
+              type: "video",
+              mimeType: "video/mp4",
+            })) || hfResult.mediaUrl;
+        } catch (persistErr) {
+          console.warn("[VideoCreativeService] Local persistent media storage warning:", persistErr);
+        }
+
         return {
-          id: `art_vid_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          id: artifactId,
           type: "video",
           title: this.truncateTitle(prompt),
           subtitle: `VIDEO • ${aspectRatio} • Hugging Face ZeroGPU (${hfResult.model})`,
-          mediaUrl: hfResult.mediaUrl,
+          mediaUrl: persistentMediaUrl,
           status: "ready",
           createdAt: new Date().toISOString(),
           videoMetadata: {

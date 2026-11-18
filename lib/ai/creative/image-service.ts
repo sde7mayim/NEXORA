@@ -18,6 +18,7 @@ import {
   ImageStylePreset,
 } from "./creative-types";
 import { ImageProviderAdapter, ImageProviderType } from "./image-provider-adapter";
+import { MediaStorageService } from "./media-storage";
 
 export interface GenerateImageOptions {
   prompt: string;
@@ -26,6 +27,8 @@ export interface GenerateImageOptions {
   seed?: number;
   provider?: ImageProviderType | "fail" | "capacity-fail";
   quality?: "standard" | "hd";
+  userId?: string;
+  returnPersistentUrl?: boolean;
 }
 
 export interface EditImageOptions {
@@ -34,6 +37,7 @@ export interface EditImageOptions {
   operation?: "remove-bg" | "replace-bg" | "colorize" | "stylize" | "restore" | "custom";
   targetBackground?: string;
   aspectRatio?: ImageAspectRatio;
+  userId?: string;
 }
 
 export interface GenerateVariationOptions {
@@ -221,13 +225,37 @@ export class ImageCreativeService {
         ? `${result.provider} (Fallback) • ${result.model}`
         : `${result.provider} • ${result.model}`;
 
+      const artifactId = `art_img_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      let persistentMediaUrl = result.mediaUrl;
+      if (result.mediaUrl) {
+        try {
+          persistentMediaUrl =
+            (await MediaStorageService.persistArtifactMedia({
+              id: artifactId,
+              userId: options.userId || "usr_alex",
+              mediaUrl: result.mediaUrl,
+              type: "image",
+              mimeType: result.mediaUrl.startsWith("data:image/webp")
+                ? "image/webp"
+                : result.mediaUrl.startsWith("data:image/png")
+                  ? "image/png"
+                  : "image/jpeg",
+            })) || result.mediaUrl;
+        } catch (persistErr) {
+          console.warn("[ImageCreativeService] Local persistent media storage warning:", persistErr);
+        }
+      }
+
+      const returnUrl = options.returnPersistentUrl ? persistentMediaUrl : result.mediaUrl;
+
       return {
-        id: `art_img_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        id: artifactId,
         type: "image",
         title: this.truncateTitle(prompt),
         subtitle: `${resolvedStyle.toUpperCase()} • ${aspectRatio} • ${result.width}x${result.height}`,
-        mediaUrl: result.mediaUrl,
-        thumbnailUrl: result.mediaUrl,
+        mediaUrl: returnUrl,
+        persistentUrl: persistentMediaUrl,
+        thumbnailUrl: returnUrl,
         status: "ready",
         createdAt: new Date().toISOString(),
         imageMetadata: {
@@ -245,7 +273,7 @@ export class ImageCreativeService {
       };
     } catch (err: any) {
       const rawErrorMsg = err?.message || String(err);
-      
+
       // Keep detailed provider diagnostics strictly in server logs with secrets redacted
       const redactedServerLog = rawErrorMsg
         .replace(/key=[^&\s]+/gi, "key=[REDACTED]")

@@ -6,6 +6,7 @@ import {
 } from "./creative-types";
 import { LyricsCreativeService } from "./lyrics-service";
 import { MusicProviderAdapter, MusicProviderType } from "./music-provider-adapter";
+import { MediaStorageService } from "./media-storage";
 
 export interface GenerateMusicOptions {
   prompt: string;
@@ -20,6 +21,8 @@ export interface GenerateMusicOptions {
   tempoBpm?: number;
   durationSeconds?: number;
   provider?: "auto" | "huggingface" | "synthesizer" | "suno" | "udio" | "replicate" | "elevenlabs" | "none";
+  userId?: string;
+  returnPersistentUrl?: boolean;
 }
 
 export class MusicCreativeService {
@@ -160,12 +163,36 @@ export class MusicCreativeService {
           : "Original authentic song lyrics generated and bound line-by-line to this audio track."),
     };
 
+    const artifactId = `art_mus_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    let persistentMediaUrl = mediaUrl;
+    if (mediaUrl) {
+      try {
+        persistentMediaUrl =
+          (await MediaStorageService.persistArtifactMedia({
+            id: artifactId,
+            userId: options.userId || "usr_alex",
+            mediaUrl,
+            type: "music",
+            mimeType: mediaUrl.startsWith("data:audio/aac")
+              ? "audio/aac"
+              : mediaUrl.startsWith("data:audio/mp3") || mediaUrl.startsWith("data:audio/mpeg")
+              ? "audio/mpeg"
+              : "audio/wav",
+          })) || mediaUrl;
+      } catch (persistErr) {
+        console.warn("[MusicCreativeService] Local persistent media storage warning:", persistErr);
+      }
+    }
+
+    const returnUrl = options.returnPersistentUrl ? persistentMediaUrl : (mediaUrl || undefined);
+
     const artifact: CreativeArtifact = {
-      id: `art_mus_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      id: artifactId,
       type: "music",
       title,
       subtitle: `${isTamil ? "Tamil" : "English"} • ${genre} • ${mood} • ${tempoBpm} BPM • ${durationSeconds}s`,
-      mediaUrl: mediaUrl || undefined,
+      mediaUrl: returnUrl,
+      persistentUrl: persistentMediaUrl || undefined,
       status,
       errorMessage,
       createdAt: new Date().toISOString(),
